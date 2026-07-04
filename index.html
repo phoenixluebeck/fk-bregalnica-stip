@@ -181,13 +181,23 @@ const mkNetto=bm=>{
   return {sozialabgaben,steuer,netto:bm-sozialabgaben-steuer};
 };
 
+// Spielerverträge: Mindestlohn-Vertrag (Minijob-Äquivalent, optional) + Aneks-Vertrag (Zusatzvereinbarung, immer).
+const MK_MINIJOB_NETTO=450; // Mindestlohn-Vertrag: fixer Netto-Betrag an den Spieler
+const MK_MINIJOB_AUFSCHLAG=0.45; // Verein zahlt zusätzlich 45% Sozialabgaben obendrauf
+const MK_MINIJOB_KOSTEN=MK_MINIJOB_NETTO*(1+MK_MINIJOB_AUFSCHLAG); // AG-Kosten/Monat = 652,50 €
+const MK_ANEKS_AUFSCHLAG=0.10; // Aneks-Vertrag: Betrag ist für den Spieler netto=brutto, Verein zahlt 10% obendrauf
+
 function calcP(p){
-  const bm=p.bruttoMonat||0, bj=bm*12, dur=Math.max(1,p.durationMonths??SAISON_REST);
-  const mb=bm, sb=mb*dur;
+  const anx=p.bruttoMonat||0; // Aneks-Betrag: für den Spieler netto = brutto
+  const dur=Math.max(1,p.durationMonths??SAISON_REST);
+  const minijob=p.hasMinijob?1:0;
+  const anxAbgabe=anx*MK_ANEKS_AUFSCHLAG, minijobAbgabe=minijob*(MK_MINIJOB_KOSTEN-MK_MINIJOB_NETTO);
+  const netto=anx+minijob*MK_MINIJOB_NETTO;
+  const mb=anx+anxAbgabe+minijob*MK_MINIJOB_KOSTEN, bj=mb*12, sb=mb*dur;
   const fkJ=(p.fahrtkosten||0)*12; // Fahrtkostenerstattung (steuerfrei)
   const zs=fkJ/12*dur;
   const mbTotal=mb+fkJ/12;
-  return {bj,mb,mbTotal,sb,fkJ,zs,ges:sb+zs,...mkNetto(bm)};
+  return {bj,mb,mbTotal,sb,fkJ,zs,ges:sb+zs,netto,anxAbgabe,minijobAbgabe};
 }
 function calcS(s){
   const bm=s.bruttoMonat||0, bj=bm*12, dur=Math.max(1,s.durationMonths??SAISON_REST);
@@ -314,7 +324,7 @@ function PlayerForm({player,onSave,onClose}){
   const [d,setD]=useState({
     name:'',position:'',geburtstag:'',
     bruttoMonat:0,durationMonths:SAISON_REST,
-    fahrtkosten:0,
+    hasMinijob:false,fahrtkosten:0,
     rentMonthly:0,rentMonths:0,notes:'',
     praemiePunkt:0,praemieEinsatz:0,praemieAufstieg:0,praemiePokal:0,
     ...(player||{})
@@ -335,9 +345,12 @@ function PlayerForm({player,onSave,onClose}){
         <Field label="Restmonate Saison" note={'Auto: '+SAISON_REST+'M ab '+(new Date().toLocaleDateString('de-DE',{month:'long',year:'numeric'}))}>
           <NumInput value={d.durationMonths} onChange={v=>set('durationMonths',Math.max(0,Math.round(v)))} min={0} max={12}/>
         </Field>
-        <Field label="Brutto / Monat (EUR)">
+        <Field label="Aneks-Gehalt / Monat (EUR)" note="Zusatzvereinbarung – netto = brutto, Verein zahlt +10%">
           <NumInput value={d.bruttoMonat} onChange={v=>set('bruttoMonat',v)} min={0}/>
         </Field>
+        <div className="space-y-2 flex flex-col justify-end pb-0.5">
+          <Chk id={'mj-'+(d.id||'new')} checked={d.hasMinijob} onChange={v=>set('hasMinijob',v)} label={'Mindestlohn-Vertrag ('+fmt(MK_MINIJOB_NETTO)+' netto, Verein +45%)'}/>
+        </div>
         <Field label="Fahrtkostenerstattung (EUR/M)" note="Steuerfrei – wirkt netto auf Spieler">
           <NumInput value={d.fahrtkosten} onChange={v=>set('fahrtkosten',v)} min={0}/>
         </Field>
@@ -367,10 +380,14 @@ function PlayerForm({player,onSave,onClose}){
       </div>
 
       <div className="rounded-lg bg-muted/50 p-4 text-sm">
-        <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-2">Brutto → Netto (Nordmazedonien)</p>
+        <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-2">Vertragsstruktur Nordmazedonien</p>
         <div className="grid grid-cols-2 gap-x-6 gap-y-1">
-          <span className="text-muted-foreground">Sozialabgaben (28%)</span><span className="text-right">{fmt(c.sozialabgaben)}</span>
-          <span className="text-muted-foreground">Lohnsteuer (10% Flat-Tax)</span><span className="text-right">{fmt(c.steuer)}</span>
+          <span className="text-muted-foreground">Aneks-Vertrag (netto = brutto)</span><span className="text-right">{fmt(d.bruttoMonat||0)}</span>
+          <span className="text-muted-foreground text-xs italic pl-2">↳ Verein zahlt +10% Abgaben</span><span className="text-right text-xs text-muted-foreground italic">{fmt(c.anxAbgabe)}</span>
+          {d.hasMinijob&&<>
+            <span className="text-muted-foreground">Mindestlohn-Vertrag (netto)</span><span className="text-right">{fmt(MK_MINIJOB_NETTO)}</span>
+            <span className="text-muted-foreground text-xs italic pl-2">↳ Verein zahlt +45% Abgaben</span><span className="text-right text-xs text-muted-foreground italic">{fmt(c.minijobAbgabe)}</span>
+          </>}
         </div>
         <div className="flex justify-between pt-2 mt-2 border-t border-border font-bold text-base">
           <span>Netto an Spieler/Monat</span>
@@ -558,8 +575,8 @@ function KaderPage({players,onChange}){
   const tots=useMemo(()=>list.reduce((a,p)=>{const c=calcP(p);const ms=(p.rentMonthly||0)*(p.rentMonths||0);return{bj:a.bj+c.bj,sb:a.sb+c.sb,ges:a.ges+c.ges+ms};},{bj:0,sb:0,ges:0}),[list]);
   const save=p=>{onChange(editing?players.map(x=>x.id===p.id?p:x):[...players,p]);setModal(false);setEditing(null);};
   const csv=()=>{
-    const rows=[['Name','Position','Brutto/M','Brutto/J','Sozialabgaben/M','Lohnsteuer/M','Netto/M','Saison','Miete','Gesamt','Kommentar','Punktprämie/Pkt','Einsatzprämie/Einsatz','Aufstiegsprämie','Pokalprämie']];
-    list.forEach(p=>{const c=calcP(p);const ms=(p.rentMonthly||0)*(p.rentMonths||0);rows.push([p.name,p.position,p.bruttoMonat,Math.round(c.bj),Math.round(c.sozialabgaben),Math.round(c.steuer),Math.round(c.netto),Math.round(c.sb),Math.round(ms),Math.round(c.ges+ms),p.notes||'',p.praemiePunkt||0,p.praemieEinsatz||0,p.praemieAufstieg||0,p.praemiePokal||0]);});
+    const rows=[['Name','Position','Aneks-Gehalt/M','Mindestlohn-Vertrag','Netto/M','AG-Kosten/M','Saison','Miete','Gesamt','Kommentar','Punktprämie/Pkt','Einsatzprämie/Einsatz','Aufstiegsprämie','Pokalprämie']];
+    list.forEach(p=>{const c=calcP(p);const ms=(p.rentMonthly||0)*(p.rentMonths||0);rows.push([p.name,p.position,p.bruttoMonat,p.hasMinijob?'ja':'nein',Math.round(c.netto),Math.round(c.mbTotal),Math.round(c.sb),Math.round(ms),Math.round(c.ges+ms),p.notes||'',p.praemiePunkt||0,p.praemieEinsatz||0,p.praemieAufstieg||0,p.praemiePokal||0]);});
     const a=document.createElement('a');a.href='data:text/csv;charset=utf-8,\uFEFF'+encodeURIComponent(rows.map(r=>r.join(';')).join('\n'));a.download='kader.csv';a.click();
   };
   return(
@@ -598,7 +615,7 @@ function KaderPage({players,onChange}){
                     <td className="px-4 py-2.5 font-medium">{p.name||'-'}</td>
                     <td className="px-4 py-2.5 text-muted-foreground">{p.position||'-'}</td>
                     <td className="px-4 py-2.5 text-right">{fmt(p.bruttoMonat)}</td>
-                    <td className="px-4 py-2.5 text-right text-violet-600 font-medium">{fmt((p.bruttoMonat||0)+((p.fahrtkosten||0)+(p.rentMonthly||0))*GROSS_UP)}</td>
+                    <td className="px-4 py-2.5 text-right text-violet-600 font-medium">{fmt((p.bruttoMonat||0)+(p.hasMinijob?MK_MINIJOB_NETTO:0)+((p.fahrtkosten||0)+(p.rentMonthly||0))*GROSS_UP)}</td>
                     <td className="px-4 py-2.5 text-right text-muted-foreground">{fmt(c.mbTotal)}</td>
                     <td className="px-4 py-2.5 text-right">{fmt(c.sb)}</td>
                     <td className="px-4 py-2.5 text-right text-muted-foreground">{ms>0?fmt(ms):'-'}</td>

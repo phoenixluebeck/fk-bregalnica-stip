@@ -51,6 +51,26 @@ ausschließlich für **FK Bregalnica Štip** (Phönix Lübeck läuft in einer se
   Verifiziert nach `/tmp/bregalnica_verify/`: Login-Screen lädt weiterhin fehlerfrei, keine Konsolenfehler
   (bestätigt, dass Babel das gesamte Script inkl. aller JSX-Änderungen fehlerfrei transpiliert).
 
+- **Spieler-Berechnung durch reale Vertragsstruktur des Vereins ersetzt** (präziser als die generische
+  28%/10%-Länderrechnung, da Spielerverträge in der Praxis anders aufgesetzt werden):
+  - **Mindestlohn-Vertrag** (Minijob-Äquivalent, **optional** per Kästchen in `PlayerForm`): fixe 450 €
+    netto/Monat an den Spieler, Verein zahlt zusätzlich **45%** Sozialabgaben obendrauf → AG-Kosten 652,50 €/M.
+    Konstanten `MK_MINIJOB_NETTO`/`MK_MINIJOB_AUFSCHLAG`/`MK_MINIJOB_KOSTEN` (index.html Zeile ~184).
+  - **Aneks-Vertrag** (Zusatzvereinbarung, **für alle Spieler**, das bisherige „Brutto/Monat"-Feld, jetzt
+    „Aneks-Gehalt/Monat"): Betrag ist für den Spieler netto = brutto (keine Abzüge), Verein zahlt zusätzlich
+    **10%** obendrauf. Konstante `MK_ANEKS_AUFSCHLAG`.
+  - Beispiel: 2000 € Aneks + Mindestlohn-Vertrag → Spieler erhält 2450 € netto (2000+450), Verein zahlt
+    2852,50 € (2000×1,10 + 652,50).
+  - `calcP` (index.html Zeile ~188) komplett neu; `calcS`/`StaffForm`/Staff-CSV bleiben unverändert bei der
+    generischen `mkNetto` (28% Sozialabgaben + 10% Flat-Tax) — die neue Struktur gilt laut User nur für Spieler,
+    nicht für Staff.
+  - `PlayerForm` zeigt jetzt eine „Vertragsstruktur Nordmazedonien"-Box mit Aneks-Betrag, Mindestlohn (falls
+    aktiv) und Netto-Summe. Kader-CSV-Export angepasst (Spalten: Aneks-Gehalt/M, Mindestlohn-Vertrag ja/nein,
+    Netto/M, AG-Kosten/M). Paket-Äquivalent-Spalte in der Kader-Tabelle berücksichtigt jetzt auch die 450€
+    Mindestlohn-Netto, falls aktiviert.
+  - Verifiziert nach `/tmp/bregalnica_verify/`: Login lädt fehlerfrei, keine Konsolenfehler; Rechenbeispiel
+    manuell gegengeprüft (s.o.).
+
 - **Liga/Verband/Ort auf Nordmazedonien umgestellt** + **nur eine Mannschaft** (kein Regionalliga/U23-Split mehr):
   - Liga-Bezeichnung im Kalender: „Regionalliga" → **„Prva Liga"** (Macedonian First Football League), kurz „PL"
     (`TERMIN_TYPEN`, index.html Zeile ~102 — die interne ID `'regionalliga'` blieb unverändert, nur das Label).
