@@ -66,6 +66,11 @@ ausschließlich für **FK Bregalnica Štip** (Phönix Lübeck läuft in einer se
     (Team-Filter-Buttons entfernt, da nur noch eine Gruppe existiert).
   - Verifiziert nach `/tmp/bregalnica_verify/`: Login-Screen lädt weiterhin fehlerfrei, keine Konsolenfehler.
 
+- **Spielplan auf 36 Spieltage angepasst** (Prva Liga: 10 Teams, jeder 4x gegen jeden = 9 Gegner × 4 = 36 Spiele,
+  vorher 34 nach deutschem Regionalliga-Nord-Vorbild): `DEFAULT_SP` (index.html Zeile 78) und der `tg||36`-Fallback
+  in `costYr` (Zeile 197) aktualisiert. Monatsverteilung: `[0,4,3,4,3,2,2,3,4,4,4,3]` (Juli weiterhin 0 =
+  Saisonvorbereitung). Verifiziert: Login lädt fehlerfrei, keine Konsolenfehler.
+
 ## OFFEN – nächste Schritte (mit dem User)
 1. **Firestore-Regeln publishen**: falls noch nicht geschehen — Inhalt aus `firestore.rules` in der Firebase
    Console (Firestore Database → Rules) einfügen und **Publish** klicken.

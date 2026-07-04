@@ -75,7 +75,7 @@ const {useState,useEffect,useRef,useMemo}=React;
 
 // ─── KONSTANTEN ──────────────────────────────────────────────────────────────
 const MONTHS=['Jul','Aug','Sep','Okt','Nov','Dez','Jan','Feb','Mär','Apr','Mai','Jun'];
-const DEFAULT_SP=[0,3,3,4,3,2,2,3,4,4,3,3]; // 34 Spiele (Juli = Vorbereitung)
+const DEFAULT_SP=[0,4,3,4,3,2,2,3,4,4,4,3]; // 36 Spiele: 10 Teams, jeder 4x gegen jeden (Juli = Vorbereitung)
 const COST_CATS=['Spielbetrieb','Ausstattung','Reisekosten','Platzmiete','Schiedsrichter','Verbandsabgaben','Versicherungen','Medizinisch','Catering','Marketing','Verwaltung','Unterkunft','Sonstiges'];
 const COST_SUBCATS={
   Unterkunft:['Wohnungen','Hotel','Pension','WG'],
@@ -194,7 +194,7 @@ function calcS(s){
   const jb=bj+(s.bonusYear||0), mb=jb/12, sb=mb*dur;
   return {bj,jb,mb,mbTotal:mb,sb,ges:sb,...mkNetto(bm)};
 }
-const costYr=(c,tg)=>{const b=(c.amount||0)*(c.quantity||1);return c.frequency==='monthly'?b*12:c.frequency==='per_game'?b*(tg||34):b;};
+const costYr=(c,tg)=>{const b=(c.amount||0)*(c.quantity||1);return c.frequency==='monthly'?b*12:c.frequency==='per_game'?b*(tg||36):b;};
 const costMo=(c,m,g)=>{const b=(c.amount||0)*(c.quantity||1);if(c.frequency==='monthly')return b;if(c.frequency==='per_game')return b*g;if(c.frequency==='yearly')return b/12;if(c.frequency==='once')return(c.month||0)===m?b:0;return 0;};
 const incYr=i=>{const b=(i.amount||0)*(i.quantity||1);return i.frequency==='monthly'?b*12:b;};
 const incMo=(i,m)=>{const b=(i.amount||0)*(i.quantity||1);if(i.frequency==='monthly')return b;if(i.frequency==='yearly')return b/12;if(i.frequency==='once')return(i.month||0)===m?b:0;return 0;};
