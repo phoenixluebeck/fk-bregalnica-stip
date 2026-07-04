@@ -87,11 +87,9 @@ const COST_SUBCATS={
   Verwaltung:['Bürokosten','Buchhaltung','Rechtsberatung'],
   Spielbetrieb:['Spielbälle','SR-Gebühren','Netzwerkmaterial','Torwartausstattung'],
 };
-const INCOME_CATS=['Ticketing','Sponsoring','TV/Medien','Fördergelder','Merchandising','Mitgliedsbeiträge','DFB/Verband','Sonstiges'];
+const INCOME_CATS=['Ticketing','Sponsoring','TV/Medien','Fördergelder','Merchandising','Mitgliedsbeiträge','FFM/Verband','Sonstiges'];
 const FREQ={monthly:'Monatlich',yearly:'Jährlich',per_game:'Pro Spiel',once:'Einmalig'};
-const TEAM_LBL={regionalliga:'Regionalliga',u23:'Oberliga (U23)',both:'Beide Mannschaften'};
-const UEL=275, MINIJOB=1200, MINIJOB_NET=603; // MINIJOB: AG zahlt 1.200 €, Spieler erhält 603 € netto
-const GROSS_UP=1/0.65; // Netto-Vorteile → Brutto-Äquivalent (~35% Abgaben)
+const GROSS_UP=1/0.65; // Netto-Vorteile → Brutto-Äquivalent (~35% Abgaben, entspricht etwa der MK-Gesamtabgabenlast)
 // Verbleibende Saisonmonate – Saison 01.07.2026 bis 30.06.2027
 const _n=new Date(),_elapsed=Math.max(0,(_n.getFullYear()-2026)*12+_n.getMonth()-6);
 const SAISON_REST=Math.max(0,12-_elapsed); // 12 im Juli, 11 im Aug, ... 0 ab Juli 2027
@@ -101,7 +99,7 @@ const LOGO=(typeof window!=='undefined'&&window.PHOENIX_LOGO)||'';
 // ─── KALENDER / TERMINE ───────────────────────────────────────────────────────
 const TYP_IMG_RL='';
 const TERMIN_TYPEN=[
-  {id:'regionalliga', label:'Regionalliga',   kurz:'RL',    icon:'⚽', img:TYP_IMG_RL, dot:'bg-red-500',     badge:'bg-red-100 text-red-800',       hex:'#dc2626', grad:'from-red-600 to-red-500'},
+  {id:'regionalliga', label:'Prva Liga',   kurz:'PL',    icon:'⚽', img:TYP_IMG_RL, dot:'bg-red-500',     badge:'bg-red-100 text-red-800',       hex:'#dc2626', grad:'from-red-600 to-red-500'},
   {id:'pokal',        label:'Pokalspiel',     kurz:'Pokal', icon:'🏆', dot:'bg-amber-500',   badge:'bg-amber-100 text-amber-800',   hex:'#d97706', grad:'from-amber-500 to-yellow-500'},
   {id:'testspiel',    label:'Testspiel',      kurz:'Test',  icon:'⚽', dot:'bg-blue-500',    badge:'bg-blue-100 text-blue-800',     hex:'#2563eb', grad:'from-blue-600 to-blue-500'},
   {id:'training',     label:'Training',       kurz:'Tr.',   icon:'🏋️‍♂️', dot:'bg-emerald-500', badge:'bg-emerald-100 text-emerald-800',hex:'#059669', grad:'from-emerald-600 to-emerald-500'},
@@ -125,7 +123,7 @@ const tageBisGeb=iso=>{if(!iso)return null;const b=new Date(iso+'T00:00:00');if(
 // Personen mit Geburtstag, sortiert nach naechstem Termin; wirdAlt = Alter am naechsten Geburtstag
 const naechsteGeburtstage=people=>(people||[]).filter(p=>p&&p.geburtstag).map(p=>{const tage=tageBisGeb(p.geburtstag);const cur=gebAlter(p.geburtstag);return{...p,tage,wirdAlt:cur==null?null:(tage===0?cur:cur+1)};}).sort((a,b)=>(a.tage??999)-(b.tage??999));
 const gebTageText=t=>t==null?'':t===0?'heute 🎉':t===1?'morgen':'in '+t+' Tagen';
-const gebRolle=p=>p.rolle||p.position||p.funktion||(p.team?(TEAM_LBL[p.team]||p.team):'')||'';
+const gebRolle=p=>p.rolle||p.position||p.funktion||'';
 // Geburtstags-Vorkommen (als Pseudo-Termine {_geb:true}) im Zeitraum [startIso,endIso] – fuer den PDF-Plan.
 function gebOccurrences(people,startIso,endIso){
   const out=[];if(!startIso||!endIso)return out;
@@ -171,29 +169,30 @@ const cx=(...a)=>a.filter(Boolean).join(' ');
 const fmt=n=>new Intl.NumberFormat('de-DE',{style:'currency',currency:'EUR',minimumFractionDigits:0,maximumFractionDigits:0}).format(n||0);
 
 // ─── BERECHNUNGEN ─────────────────────────────────────────────────────────────
-const LNK_FREI=349; // bis 349 €/Monat: keine Lohnnebenkosten & keine VBG
-const lnkOf=(j,bm)=>bm<=LNK_FREI?0:j*0.23;
-const vbgP=(j,bm)=>bm<=LNK_FREI?0:Math.min(j,120000)*71.595*5/1000;
-const vbgS=(j,bm)=>bm<=LNK_FREI?0:j*2.45*0.00495;
+// Nordmazedonien: keine Arbeitgeber-Lohnnebenkosten. Sozialabgaben (28%) und
+// Lohnsteuer (10% Flat-Tax) trägt der Arbeitnehmer, vom Brutto einbehalten.
+const MK_SOZ=0.28; // Rente 18,8% + Kranken 7,5% + Arbeitslosen 1,2% + Zusatz-KV 0,5%
+const MK_STEUER=0.10; // einheitliche Lohnsteuer auf das zu versteuernde Einkommen
+const MK_FREIBETRAG_MONAT=167; // pers. Freibetrag ca. 123.240 MKD/Jahr, umgerechnet (~61,5 MKD/EUR)
+const mkNetto=bm=>{
+  const sozialabgaben=bm*MK_SOZ;
+  const steuerpflichtig=Math.max(0,bm-sozialabgaben-MK_FREIBETRAG_MONAT);
+  const steuer=steuerpflichtig*MK_STEUER;
+  return {sozialabgaben,steuer,netto:bm-sozialabgaben-steuer};
+};
 
 function calcP(p){
-  const bm=p.bruttoMonat||0, bj=bm*12, l=lnkOf(bj,bm), v=vbgP(bj,bm);
-  const jb=bj+l+v, mb=jb/12, dur=Math.max(1,p.durationMonths??SAISON_REST);
-  const sb=mb*dur;
-  const uelJ=p.hasUebungsleiter?UEL*12:0, mjJ=p.hasMinijob?MINIJOB*12:0;
+  const bm=p.bruttoMonat||0, bj=bm*12, dur=Math.max(1,p.durationMonths??SAISON_REST);
+  const mb=bm, sb=mb*dur;
   const fkJ=(p.fahrtkosten||0)*12; // Fahrtkostenerstattung (steuerfrei)
-  const zs=(uelJ+mjJ+fkJ)/12*dur;
-  const mbTotal=mb+(uelJ+mjJ+fkJ)/12;
-  return {bj,lnk:l,vbg:v,jb,mb,mbTotal,sb,uelJ,mjJ,fkJ,zs,ges:sb+zs};
+  const zs=fkJ/12*dur;
+  const mbTotal=mb+fkJ/12;
+  return {bj,mb,mbTotal,sb,fkJ,zs,ges:sb+zs,...mkNetto(bm)};
 }
 function calcS(s){
-  const bm=s.bruttoMonat||0, bj=bm*12, l=lnkOf(bj,bm), v=vbgS(bj,bm);
-  const jb=bj+l+v+(s.bonusYear||0), mb=jb/12, dur=Math.max(1,s.durationMonths??SAISON_REST);
-  const sb=mb*dur;
-  const uelJ=s.hasUebungsleiter?UEL*12:0, mjJ=s.hasMinijob?MINIJOB*12:0;
-  const zs=(uelJ+mjJ)/12*dur;
-  const mbTotal=mb+(uelJ+mjJ)/12;
-  return {bj,lnk:l,vbg:v,jb,mb,mbTotal,sb,uelJ,mjJ,zs,ges:sb+zs};
+  const bm=s.bruttoMonat||0, bj=bm*12, dur=Math.max(1,s.durationMonths??SAISON_REST);
+  const jb=bj+(s.bonusYear||0), mb=jb/12, sb=mb*dur;
+  return {bj,jb,mb,mbTotal:mb,sb,ges:sb,...mkNetto(bm)};
 }
 const costYr=(c,tg)=>{const b=(c.amount||0)*(c.quantity||1);return c.frequency==='monthly'?b*12:c.frequency==='per_game'?b*(tg||34):b;};
 const costMo=(c,m,g)=>{const b=(c.amount||0)*(c.quantity||1);if(c.frequency==='monthly')return b;if(c.frequency==='per_game')return b*g;if(c.frequency==='yearly')return b/12;if(c.frequency==='once')return(c.month||0)===m?b:0;return 0;};
@@ -311,19 +310,19 @@ function DelBtn({onDelete}){
 }
 
 // ─── PLAYER FORM ──────────────────────────────────────────────────────────────
-function PlayerForm({player,team,onSave,onClose}){
+function PlayerForm({player,onSave,onClose}){
   const [d,setD]=useState({
-    name:'',position:'',team:team||'regionalliga',geburtstag:'',
+    name:'',position:'',geburtstag:'',
     bruttoMonat:0,durationMonths:SAISON_REST,
-    hasUebungsleiter:false,hasMinijob:false,fahrtkosten:0,
+    fahrtkosten:0,
     rentMonthly:0,rentMonths:0,notes:'',
-    praemiePunkt:0,praemieEinsatz:0,praemieAufstieg:0,praemieLandespokal:0,
+    praemiePunkt:0,praemieEinsatz:0,praemieAufstieg:0,praemiePokal:0,
     ...(player||{})
   });
   const set=(k,v)=>setD(p=>({...p,[k]:v}));
   const c=useMemo(()=>calcP(d),[d]);
   const ms=(d.rentMonthly||0)*(d.rentMonths||0);
-  const hasPraemien=(d.praemiePunkt>0||d.praemieEinsatz>0||d.praemieAufstieg>0||d.praemieLandespokal>0);
+  const hasPraemien=(d.praemiePunkt>0||d.praemieEinsatz>0||d.praemieAufstieg>0||d.praemiePokal>0);
 
   return(
     <div className="space-y-4">
@@ -333,22 +332,12 @@ function PlayerForm({player,team,onSave,onClose}){
         <Field label="Geburtstag" note={d.geburtstag&&gebAlter(d.geburtstag)!=null?(gebAlter(d.geburtstag)+' Jahre alt'):'optional'}>
           <input type="date" value={d.geburtstag||''} onChange={e=>set('geburtstag',e.target.value)} max="2020-12-31" className="w-full rounded-md border border-border bg-background px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary/40"/>
         </Field>
-        <Field label="Mannschaft">
-          <Sel value={d.team} onChange={v=>set('team',v)}>
-            <option value="regionalliga">Regionalliga</option>
-            <option value="u23">Oberliga (U23)</option>
-          </Sel>
-        </Field>
         <Field label="Restmonate Saison" note={'Auto: '+SAISON_REST+'M ab '+(new Date().toLocaleDateString('de-DE',{month:'long',year:'numeric'}))}>
           <NumInput value={d.durationMonths} onChange={v=>set('durationMonths',Math.max(0,Math.round(v)))} min={0} max={12}/>
         </Field>
         <Field label="Brutto / Monat (EUR)">
           <NumInput value={d.bruttoMonat} onChange={v=>set('bruttoMonat',v)} min={0}/>
         </Field>
-        <div className="space-y-2 flex flex-col justify-end pb-0.5">
-          <Chk id={'uel-'+(d.id||'new')} checked={d.hasUebungsleiter} onChange={v=>set('hasUebungsleiter',v)} label={'ÜL-Pauschale ('+fmt(UEL)+'/M)'}/>
-          <Chk id={'mj-'+(d.id||'new')} checked={d.hasMinijob} onChange={v=>set('hasMinijob',v)} label={'Minijob Sponsor (AG: '+fmt(MINIJOB)+' | Netto: '+fmt(MINIJOB_NET)+'/M)'}/>
-        </div>
         <Field label="Fahrtkostenerstattung (EUR/M)" note="Steuerfrei – wirkt netto auf Spieler">
           <NumInput value={d.fahrtkosten} onChange={v=>set('fahrtkosten',v)} min={0}/>
         </Field>
@@ -366,23 +355,26 @@ function PlayerForm({player,team,onSave,onClose}){
       <div className="rounded-lg bg-muted/50 p-4 text-sm">
         <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-2">Fixkosten</p>
         <div className="grid grid-cols-2 gap-x-6 gap-y-1">
-          <span className="text-muted-foreground">LNK (23%)</span><span className="text-right">{fmt(c.lnk)}</span>
-          <span className="text-muted-foreground">VBG</span><span className="text-right">{fmt(c.vbg)}</span>
           <span className="text-muted-foreground">AG-Kosten/Monat</span><span className="text-right">{fmt(c.mbTotal)}</span>
           <span className="text-muted-foreground">{'Gehalt Saison ('+d.durationMonths+'M)'}</span><span className="text-right">{fmt(c.sb)}</span>
-          {c.uelJ>0&&<><span className="text-muted-foreground">{'ÜL-Pauschale Saison ('+d.durationMonths+'M)'}</span><span className="text-right">{fmt(c.uelJ/12*Math.max(1,d.durationMonths??SAISON_REST))}</span></>}
-          {c.mjJ>0&&<>
-            <span className="text-muted-foreground">{'Minijob AG-Kosten Saison ('+d.durationMonths+'M)'}</span>
-            <span className="text-right">{fmt(c.mjJ/12*Math.max(1,d.durationMonths??SAISON_REST))}</span>
-            <span className="text-muted-foreground text-xs italic pl-2">↳ Spieler erhält netto</span>
-            <span className="text-right text-xs text-muted-foreground italic">{fmt(MINIJOB_NET*Math.max(1,d.durationMonths??SAISON_REST))}</span>
-          </>}
           {c.fkJ>0&&<><span className="text-muted-foreground">{'Fahrtkosten Saison ('+d.durationMonths+'M)'}</span><span className="text-right">{fmt(c.fkJ/12*Math.max(1,d.durationMonths??SAISON_REST))}</span></>}
           {ms>0&&<><span className="text-muted-foreground">{'Miete Saison ('+d.rentMonths+'M)'}</span><span className="text-right">{fmt(ms)}</span></>}
         </div>
         <div className="flex justify-between pt-2 mt-2 border-t border-border font-bold text-base">
           <span>Gesamtkosten</span>
           <span className="text-primary">{fmt(c.ges+ms)}</span>
+        </div>
+      </div>
+
+      <div className="rounded-lg bg-muted/50 p-4 text-sm">
+        <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-2">Brutto → Netto (Nordmazedonien)</p>
+        <div className="grid grid-cols-2 gap-x-6 gap-y-1">
+          <span className="text-muted-foreground">Sozialabgaben (28%)</span><span className="text-right">{fmt(c.sozialabgaben)}</span>
+          <span className="text-muted-foreground">Lohnsteuer (10% Flat-Tax)</span><span className="text-right">{fmt(c.steuer)}</span>
+        </div>
+        <div className="flex justify-between pt-2 mt-2 border-t border-border font-bold text-base">
+          <span>Netto an Spieler/Monat</span>
+          <span className="text-primary">{fmt(c.netto)}</span>
         </div>
       </div>
 
@@ -398,8 +390,8 @@ function PlayerForm({player,team,onSave,onClose}){
           <Field label="Aufstiegsprämie (€)">
             <NumInput value={d.praemieAufstieg} onChange={v=>set('praemieAufstieg',v)} min={0}/>
           </Field>
-          <Field label="Landespokalprämie (€)">
-            <NumInput value={d.praemieLandespokal} onChange={v=>set('praemieLandespokal',v)} min={0}/>
+          <Field label="Pokalprämie (€)">
+            <NumInput value={d.praemiePokal} onChange={v=>set('praemiePokal',v)} min={0}/>
           </Field>
         </div>
         {hasPraemien&&(
@@ -413,7 +405,7 @@ function PlayerForm({player,team,onSave,onClose}){
               <p>Bei 25 Einsätzen: <strong>{fmt((d.praemieEinsatz||0)*25)}</strong> · Bei 30: <strong>{fmt((d.praemieEinsatz||0)*30)}</strong></p>
             </>}
             {d.praemieAufstieg>0&&<p>Aufstiegsprämie: <strong>{fmt(d.praemieAufstieg)}</strong></p>}
-            {d.praemieLandespokal>0&&<p>Landespokalprämie: <strong>{fmt(d.praemieLandespokal)}</strong></p>}
+            {d.praemiePokal>0&&<p>Pokalprämie: <strong>{fmt(d.praemiePokal)}</strong></p>}
           </div>
         )}
       </div>
@@ -428,7 +420,7 @@ function PlayerForm({player,team,onSave,onClose}){
 
 // ─── STAFF FORM ───────────────────────────────────────────────────────────────
 function StaffForm({member,onSave,onClose}){
-  const [d,setD]=useState({name:'',funktion:'',geburtstag:'',bruttoMonat:0,durationMonths:SAISON_REST,bonusYear:0,hasUebungsleiter:false,hasMinijob:false,...(member||{})});
+  const [d,setD]=useState({name:'',funktion:'',geburtstag:'',bruttoMonat:0,durationMonths:SAISON_REST,bonusYear:0,...(member||{})});
   const set=(k,v)=>setD(p=>({...p,[k]:v}));
   const c=useMemo(()=>calcS(d),[d]);
   return(
@@ -442,19 +434,23 @@ function StaffForm({member,onSave,onClose}){
         <Field label="Brutto / Monat (EUR)"><NumInput value={d.bruttoMonat} onChange={v=>set('bruttoMonat',v)} min={0}/></Field>
         <Field label="Vertragsdauer (Monate)"><NumInput value={d.durationMonths} onChange={v=>set('durationMonths',Math.max(1,Math.round(v)))} min={1} max={12}/></Field>
         <Field label="Jahresbonus (EUR)" note="Fixer Bonus - in Kostenrechnung enthalten"><NumInput value={d.bonusYear} onChange={v=>set('bonusYear',v)} min={0}/></Field>
-        <div className="space-y-2 flex flex-col justify-end pb-0.5">
-          <Chk id={'s-uel-'+(d.id||'new')} checked={d.hasUebungsleiter} onChange={v=>set('hasUebungsleiter',v)} label={'ÜL-Pauschale ('+fmt(UEL)+'/M)'}/>
-          <Chk id={'s-mj-'+(d.id||'new')} checked={d.hasMinijob} onChange={v=>set('hasMinijob',v)} label={'Minijob Sponsor (AG: '+fmt(MINIJOB)+' | Netto: '+fmt(MINIJOB_NET)+'/M)'}/>
-        </div>
       </div>
       <div className="rounded-lg bg-muted/50 p-4 text-sm">
         <div className="grid grid-cols-2 gap-x-6 gap-y-1">
-          <span className="text-muted-foreground">LNK (23%)</span><span className="text-right">{fmt(c.lnk)}</span>
-          <span className="text-muted-foreground">VBG (Gewerbe)</span><span className="text-right">{fmt(c.vbg)}</span>
           <span className="text-muted-foreground">AG-Kosten/Monat</span><span className="text-right">{fmt(c.mbTotal)}</span>
         </div>
         <div className="flex justify-between pt-2 mt-2 border-t border-border font-bold text-base">
           <span>Gesamtkosten Saison</span><span className="text-primary">{fmt(c.ges)}</span>
+        </div>
+      </div>
+      <div className="rounded-lg bg-muted/50 p-4 text-sm">
+        <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-2">Brutto → Netto (Nordmazedonien)</p>
+        <div className="grid grid-cols-2 gap-x-6 gap-y-1">
+          <span className="text-muted-foreground">Sozialabgaben (28%)</span><span className="text-right">{fmt(c.sozialabgaben)}</span>
+          <span className="text-muted-foreground">Lohnsteuer (10% Flat-Tax)</span><span className="text-right">{fmt(c.steuer)}</span>
+        </div>
+        <div className="flex justify-between pt-2 mt-2 border-t border-border font-bold text-base">
+          <span>Netto an Mitarbeiter/Monat</span><span className="text-primary">{fmt(c.netto)}</span>
         </div>
       </div>
       <div className="flex justify-end gap-2 pt-2">
@@ -467,7 +463,7 @@ function StaffForm({member,onSave,onClose}){
 
 // ─── COST FORM ────────────────────────────────────────────────────────────────
 function CostForm({cost,totalGames,onSave,onClose}){
-  const [d,setD]=useState({category:'Sonstiges',subcategory:'',description:'',team:'both',amount:0,quantity:1,frequency:'yearly',month:0,...(cost||{})});
+  const [d,setD]=useState({category:'Sonstiges',subcategory:'',description:'',amount:0,quantity:1,frequency:'yearly',month:0,...(cost||{})});
   const set=(k,v)=>setD(p=>({...p,[k]:v}));
   const annual=useMemo(()=>costYr(d,totalGames),[d,totalGames]);
   const subcats=COST_SUBCATS[d.category]||[];
@@ -486,13 +482,6 @@ function CostForm({cost,totalGames,onSave,onClose}){
           }
         </Field>
         <Field label="Beschreibung" className="sm:col-span-2"><TxtInput value={d.description} onChange={v=>set('description',v)} placeholder="z.B. Busfahrten Auswärtsspiele"/></Field>
-        <Field label="Zuordnung">
-          <Sel value={d.team} onChange={v=>set('team',v)}>
-            <option value="both">Beide Mannschaften</option>
-            <option value="regionalliga">Regionalliga</option>
-            <option value="u23">Oberliga (U23)</option>
-          </Sel>
-        </Field>
         <Field label="Häufigkeit">
           <Sel value={d.frequency} onChange={v=>set('frequency',v)}>
             {Object.entries(FREQ).map(([k,v])=><option key={k} value={k}>{v}</option>)}
@@ -563,96 +552,34 @@ function IncomeForm({item,onSave,onClose}){
 
 // ─── KADER PAGE ───────────────────────────────────────────────────────────────
 function KaderPage({players,onChange}){
-  const [tab,setTab]=useState('regionalliga');
   const [modal,setModal]=useState(false);
   const [editing,setEditing]=useState(null);
-  const isTeamTab=tab==='regionalliga'||tab==='u23';
-  const list=useMemo(()=>{
-    if(tab==='minijob') return (players||[]).filter(p=>p.hasMinijob);
-    if(tab==='uebungsleiter') return (players||[]).filter(p=>p.hasUebungsleiter);
-    return (players||[]).filter(p=>p.team===tab);
-  },[players,tab]);
+  const list=players||[];
   const tots=useMemo(()=>list.reduce((a,p)=>{const c=calcP(p);const ms=(p.rentMonthly||0)*(p.rentMonths||0);return{bj:a.bj+c.bj,sb:a.sb+c.sb,ges:a.ges+c.ges+ms};},{bj:0,sb:0,ges:0}),[list]);
   const save=p=>{onChange(editing?players.map(x=>x.id===p.id?p:x):[...players,p]);setModal(false);setEditing(null);};
   const csv=()=>{
-    const rows=[['Name','Position','Brutto/M','Brutto/J','LNK','VBG','Saison','Miete','Gesamt','Kommentar','Punktprämie/Pkt','Einsatzprämie/Einsatz','Aufstiegsprämie','Landespokalprämie']];
-    list.forEach(p=>{const c=calcP(p);const ms=(p.rentMonthly||0)*(p.rentMonths||0);rows.push([p.name,p.position,p.bruttoMonat,Math.round(c.bj),Math.round(c.lnk),Math.round(c.vbg),Math.round(c.sb),Math.round(ms),Math.round(c.ges+ms),p.notes||'',p.praemiePunkt||0,p.praemieEinsatz||0,p.praemieAufstieg||0,p.praemieLandespokal||0]);});
-    const a=document.createElement('a');a.href='data:text/csv;charset=utf-8,\uFEFF'+encodeURIComponent(rows.map(r=>r.join(';')).join('\n'));a.download='kader-'+tab+'.csv';a.click();
+    const rows=[['Name','Position','Brutto/M','Brutto/J','Sozialabgaben/M','Lohnsteuer/M','Netto/M','Saison','Miete','Gesamt','Kommentar','Punktprämie/Pkt','Einsatzprämie/Einsatz','Aufstiegsprämie','Pokalprämie']];
+    list.forEach(p=>{const c=calcP(p);const ms=(p.rentMonthly||0)*(p.rentMonths||0);rows.push([p.name,p.position,p.bruttoMonat,Math.round(c.bj),Math.round(c.sozialabgaben),Math.round(c.steuer),Math.round(c.netto),Math.round(c.sb),Math.round(ms),Math.round(c.ges+ms),p.notes||'',p.praemiePunkt||0,p.praemieEinsatz||0,p.praemieAufstieg||0,p.praemiePokal||0]);});
+    const a=document.createElement('a');a.href='data:text/csv;charset=utf-8,\uFEFF'+encodeURIComponent(rows.map(r=>r.join(';')).join('\n'));a.download='kader.csv';a.click();
   };
-  const mjTotal=(players||[]).filter(p=>p.hasMinijob).length;
-  const uelTotal=(players||[]).filter(p=>p.hasUebungsleiter).length;
-  const TABS=[
-    {id:'regionalliga',label:TEAM_LBL['regionalliga'],count:(players||[]).filter(p=>p.team==='regionalliga').length},
-    {id:'u23',label:TEAM_LBL['u23'],count:(players||[]).filter(p=>p.team==='u23').length},
-    {id:'minijob',label:'💼 Minijob',count:mjTotal},
-    {id:'uebungsleiter',label:'📋 ÜL-Pauschale',count:uelTotal},
-  ];
   return(
     <div className="p-4 md:p-6 space-y-5">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div><h1 className="text-xl font-bold">Kader</h1><p className="text-sm text-muted-foreground">{list.length} Spieler &middot; {fmt(tots.ges)} Fixkosten</p></div>
         <div className="flex gap-2">
           <Btn variant="outline" onClick={csv}>CSV</Btn>
-          {isTeamTab&&<Btn onClick={()=>{setEditing(null);setModal(true);}}>+ Spieler hinzufügen</Btn>}
+          <Btn onClick={()=>{setEditing(null);setModal(true);}}>+ Spieler hinzufügen</Btn>
         </div>
       </div>
-      <div className="flex gap-1 border-b border-border overflow-x-auto">
-        {TABS.map(t=>(
-          <button key={t.id} onClick={()=>setTab(t.id)} className={cx('px-4 py-2 text-sm font-medium border-b-2 transition-colors cursor-pointer whitespace-nowrap',tab===t.id?'border-primary text-primary':'border-transparent text-muted-foreground hover:text-foreground')}>
-            {t.label} ({t.count})
-          </button>
-        ))}
-      </div>
-      {(tab==='minijob'||tab==='uebungsleiter')?(
-        <Card>
-          {list.length===0
-            ?<Empty msg={tab==='minijob'?'Kein Spieler hat einen Minijob.':'Kein Spieler hat eine ÜL-Pauschale.'}/>
-            :<div className="overflow-x-auto"><table className="w-full text-sm">
-              <thead><tr className="border-b border-border text-xs text-muted-foreground uppercase tracking-wide text-left">
-                <th className="px-4 py-3">Name</th>
-                <th className="px-4 py-3">Position</th>
-                <th className="px-4 py-3">Team</th>
-                <th className="px-4 py-3 text-right">Brutto/M</th>
-                {tab==='minijob'&&<><th className="px-4 py-3 text-right">AG-Kosten/M</th><th className="px-4 py-3 text-right">Netto Spieler/M</th></>}
-                {tab==='uebungsleiter'&&<th className="px-4 py-3 text-right">ÜL-Pauschale/M</th>}
-              </tr></thead>
-              <tbody>
-                {list.map(p=>(
-                  <tr key={p.id} className="border-b border-border/50 hover:bg-muted/30 transition-colors">
-                    <td className="px-4 py-2.5 font-medium">{p.name||'-'}</td>
-                    <td className="px-4 py-2.5 text-muted-foreground">{p.position||'-'}</td>
-                    <td className="px-4 py-2.5"><Badge>{TEAM_LBL[p.team]||p.team}</Badge></td>
-                    <td className="px-4 py-2.5 text-right">{fmt(p.bruttoMonat)}</td>
-                    {tab==='minijob'&&<>
-                      <td className="px-4 py-2.5 text-right font-semibold text-primary">{fmt(MINIJOB)}</td>
-                      <td className="px-4 py-2.5 text-right text-muted-foreground">{fmt(MINIJOB_NET)}</td>
-                    </>}
-                    {tab==='uebungsleiter'&&<td className="px-4 py-2.5 text-right font-semibold text-primary">{fmt(UEL)}</td>}
-                  </tr>
-                ))}
-              </tbody>
-              <tfoot><tr className="bg-muted/40 font-semibold text-sm border-t-2 border-border">
-                <td className="px-4 py-2" colSpan="3">Gesamt ({list.length})</td>
-                <td className="px-4 py-2 text-right">{fmt(list.reduce((s,p)=>s+(p.bruttoMonat||0),0))}</td>
-                {tab==='minijob'&&<>
-                  <td className="px-4 py-2 text-right text-primary">{fmt(list.length*MINIJOB)}</td>
-                  <td className="px-4 py-2 text-right text-muted-foreground">{fmt(list.length*MINIJOB_NET)}</td>
-                </>}
-                {tab==='uebungsleiter'&&<td className="px-4 py-2 text-right text-primary">{fmt(list.length*UEL)}</td>}
-              </tr></tfoot>
-            </table></div>
-          }
-        </Card>
-      ):(
       <Card>
         {list.length===0
-          ?<Empty msg="Noch keine Spieler in dieser Mannschaft." action={<Btn onClick={()=>{setEditing(null);setModal(true);}}>+ Spieler hinzufügen</Btn>}/>
+          ?<Empty msg="Noch keine Spieler im Kader." action={<Btn onClick={()=>{setEditing(null);setModal(true);}}>+ Spieler hinzufügen</Btn>}/>
           :<div className="overflow-x-auto"><table className="w-full text-sm">
             <thead><tr className="border-b border-border text-xs text-muted-foreground uppercase tracking-wide text-left">
               <th className="px-4 py-3 w-8"></th>
               <th className="px-4 py-3">Name</th><th className="px-4 py-3">Position</th>
               <th className="px-4 py-3 text-right">Brutto/M</th>
-              <th className="px-4 py-3 text-right text-violet-600" title="Brutto-Äquivalent: reguläres Brutto + steuerfreie Vorteile (ÜL, Minijob, Wohnung) hochgerechnet auf ~35% Abgaben">Paket-Äq.†</th>
+              <th className="px-4 py-3 text-right text-violet-600" title="Brutto-Äquivalent: reguläres Brutto + steuerfreie Vorteile (Fahrtkosten, Wohnung) hochgerechnet auf ~35% Abgaben">Paket-Äq.†</th>
               <th className="px-4 py-3 text-right">AG/M</th>
               <th className="px-4 py-3 text-right">Saison</th><th className="px-4 py-3 text-right">Miete</th>
               <th className="px-4 py-3 text-right font-semibold">Gesamt</th>
@@ -664,14 +591,14 @@ function KaderPage({players,onChange}){
               {list.map((p,pi)=>{
                 const c=calcP(p);
                 const ms=(p.rentMonthly||0)*(p.rentMonths||0);
-                const pot=(p.praemiePunkt||0)*70+(p.praemieEinsatz||0)*28+(p.praemieAufstieg||0)+(p.praemieLandespokal||0);
+                const pot=(p.praemiePunkt||0)*70+(p.praemieEinsatz||0)*28+(p.praemieAufstieg||0)+(p.praemiePokal||0);
                 return(
                   <tr key={p.id} className="border-b border-border/50 hover:bg-muted/30 transition-colors">
                     <td className="px-4 py-1.5 w-8"><MoveBtn items={list} index={pi} allItems={players} onChange={onChange}/></td>
                     <td className="px-4 py-2.5 font-medium">{p.name||'-'}</td>
                     <td className="px-4 py-2.5 text-muted-foreground">{p.position||'-'}</td>
                     <td className="px-4 py-2.5 text-right">{fmt(p.bruttoMonat)}</td>
-                    <td className="px-4 py-2.5 text-right text-violet-600 font-medium">{fmt((p.bruttoMonat||0)+((p.hasUebungsleiter?UEL:0)+(p.hasMinijob?MINIJOB_NET:0)+(p.fahrtkosten||0)+(p.rentMonthly||0))*GROSS_UP)}</td>
+                    <td className="px-4 py-2.5 text-right text-violet-600 font-medium">{fmt((p.bruttoMonat||0)+((p.fahrtkosten||0)+(p.rentMonthly||0))*GROSS_UP)}</td>
                     <td className="px-4 py-2.5 text-right text-muted-foreground">{fmt(c.mbTotal)}</td>
                     <td className="px-4 py-2.5 text-right">{fmt(c.sb)}</td>
                     <td className="px-4 py-2.5 text-right text-muted-foreground">{ms>0?fmt(ms):'-'}</td>
@@ -703,11 +630,10 @@ function KaderPage({players,onChange}){
           </table></div>
         }
       </Card>
-      )}
-      {isTeamTab&&<p className="text-xs text-muted-foreground">† Paket-Äquivalent: reguläres Brutto + steuerfreie Vorteile (ÜL-Pauschale, Minijob-Netto, Wohnung) umgerechnet auf ca. Brutto bei ~35% Abgaben. Orientierungswert.</p>}
-      {isTeamTab&&<Modal open={modal} onClose={()=>{setModal(false);setEditing(null);}} title={editing?'Spieler bearbeiten':'Neuer Spieler'} wide>
-        <PlayerForm player={editing} team={tab} onSave={save} onClose={()=>{setModal(false);setEditing(null);}}/>
-      </Modal>}
+      <p className="text-xs text-muted-foreground">† Paket-Äquivalent: reguläres Brutto + steuerfreie Vorteile (Fahrtkosten, Wohnung) umgerechnet auf ca. Brutto bei ~35% Abgaben. Orientierungswert.</p>
+      <Modal open={modal} onClose={()=>{setModal(false);setEditing(null);}} title={editing?'Spieler bearbeiten':'Neuer Spieler'} wide>
+        <PlayerForm player={editing} onSave={save} onClose={()=>{setModal(false);setEditing(null);}}/>
+      </Modal>
     </div>
   );
 }
@@ -718,7 +644,7 @@ function StaffPage({staff,onChange}){
   const [editing,setEditing]=useState(null);
   const total=useMemo(()=>(staff||[]).reduce((s,m)=>s+calcS(m).ges,0),[staff]);
   const save=s=>{onChange(editing?staff.map(x=>x.id===s.id?s:x):[...staff,s]);setModal(false);setEditing(null);};
-  const csv=()=>{const rows=[['Name','Funktion','Brutto/M','LNK','VBG','Boni/J','Saison']];(staff||[]).forEach(s=>{const c=calcS(s);rows.push([s.name,s.funktion,s.bruttoMonat,Math.round(c.lnk),Math.round(c.vbg),s.bonusYear||0,Math.round(c.sb)]);});const a=document.createElement('a');a.href='data:text/csv;charset=utf-8,\uFEFF'+encodeURIComponent(rows.map(r=>r.join(';')).join('\n'));a.download='staff.csv';a.click();};
+  const csv=()=>{const rows=[['Name','Funktion','Brutto/M','Sozialabgaben/M','Lohnsteuer/M','Netto/M','Boni/J','Saison']];(staff||[]).forEach(s=>{const c=calcS(s);rows.push([s.name,s.funktion,s.bruttoMonat,Math.round(c.sozialabgaben),Math.round(c.steuer),Math.round(c.netto),s.bonusYear||0,Math.round(c.sb)]);});const a=document.createElement('a');a.href='data:text/csv;charset=utf-8,\uFEFF'+encodeURIComponent(rows.map(r=>r.join(';')).join('\n'));a.download='staff.csv';a.click();};
   return(
     <div className="p-4 md:p-6 space-y-5">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -733,8 +659,7 @@ function StaffPage({staff,onChange}){
               <th className="px-4 py-3 w-8"></th>
               <th className="px-4 py-3">Name</th><th className="px-4 py-3">Funktion</th>
               <th className="px-4 py-3 text-right">Brutto/M</th>
-              <th className="px-4 py-3 text-right text-violet-600" title="Brutto-Äquivalent: reguläres Brutto + steuerfreie Vorteile (ÜL, Minijob) hochgerechnet auf ~35% Abgaben">Paket-Äq.†</th>
-              <th className="px-4 py-3 text-right">LNK+VBG/J</th>
+              <th className="px-4 py-3 text-right">Netto/M</th>
               <th className="px-4 py-3 text-right">Boni/J</th><th className="px-4 py-3 text-right">Monate</th>
               <th className="px-4 py-3 text-right font-semibold">Saison</th><th className="px-4 py-3"></th>
             </tr></thead>
@@ -744,8 +669,7 @@ function StaffPage({staff,onChange}){
                 <td className="px-4 py-2.5 font-medium">{s.name||'-'}</td>
                 <td className="px-4 py-2.5 text-muted-foreground">{s.funktion||'-'}</td>
                 <td className="px-4 py-2.5 text-right">{fmt(s.bruttoMonat)}</td>
-                <td className="px-4 py-2.5 text-right text-violet-600 font-medium">{fmt((s.bruttoMonat||0)+(s.bonusYear||0)/12+((s.hasUebungsleiter?UEL:0)+(s.hasMinijob?MINIJOB_NET:0))*GROSS_UP)}</td>
-                <td className="px-4 py-2.5 text-right text-muted-foreground">{fmt(c.lnk+c.vbg)}</td>
+                <td className="px-4 py-2.5 text-right text-muted-foreground">{fmt(c.netto)}</td>
                 <td className="px-4 py-2.5 text-right text-muted-foreground">{fmt(s.bonusYear||0)}</td>
                 <td className="px-4 py-2.5 text-right text-muted-foreground">{(s.durationMonths??SAISON_REST)}M</td>
                 <td className="px-4 py-2.5 text-right font-semibold text-primary">{fmt(c.ges)}</td>
@@ -757,7 +681,7 @@ function StaffPage({staff,onChange}){
                 </td>
               </tr>
             );})}</tbody>
-            <tfoot><tr className="bg-muted/40 font-semibold text-sm border-t-2 border-border"><td className="px-4 py-2" colSpan="6">Gesamt</td><td className="px-4 py-2 text-right text-primary">{fmt(total)}</td><td></td></tr></tfoot>
+            <tfoot><tr className="bg-muted/40 font-semibold text-sm border-t-2 border-border"><td className="px-4 py-2" colSpan="7">Gesamt</td><td className="px-4 py-2 text-right text-primary">{fmt(total)}</td><td></td></tr></tfoot>
           </table></div>
         }
       </Card>
@@ -773,10 +697,9 @@ function KostenPage({costs,spielplan,onChange}){
   const [modal,setModal]=useState(false);
   const [editing,setEditing]=useState(null);
   const [fCat,setFCat]=useState('Alle');
-  const [fTeam,setFTeam]=useState('all');
   const totalGames=useMemo(()=>spielplan.reduce((a,b)=>a+b,0),[spielplan]);
   const save=c=>{onChange(editing?costs.map(x=>x.id===c.id?c:x):[...costs,c]);setModal(false);setEditing(null);};
-  const filtered=useMemo(()=>(costs||[]).filter(c=>{if(fCat!=='Alle'&&c.category!==fCat)return false;if(fTeam!=='all'&&c.team!==fTeam&&c.team!=='both')return false;return true;}),[costs,fCat,fTeam]);
+  const filtered=useMemo(()=>(costs||[]).filter(c=>fCat==='Alle'||c.category===fCat),[costs,fCat]);
   const total=useMemo(()=>filtered.reduce((s,c)=>s+costYr(c,totalGames),0),[filtered,totalGames]);
   const grouped=useMemo(()=>{
     const g={};
@@ -790,9 +713,6 @@ function KostenPage({costs,spielplan,onChange}){
         <Btn onClick={()=>{setEditing(null);setModal(true);}}>+ Kostenstelle hinzufügen</Btn>
       </div>
       <div className="flex gap-3 flex-wrap">
-        <Sel value={fTeam} onChange={setFTeam} className="w-48">
-          <option value="all">Alle Mannschaften</option><option value="regionalliga">Nur Regionalliga</option><option value="u23">Nur Oberliga (U23)</option>
-        </Sel>
         <Sel value={fCat} onChange={setFCat} className="w-48">
           <option value="Alle">Alle Kategorien</option>
           {COST_CATS.map(c=><option key={c} value={c}>{c}</option>)}
@@ -809,7 +729,7 @@ function KostenPage({costs,spielplan,onChange}){
             <div className="overflow-x-auto"><table className="w-full text-sm">
               <thead><tr className="text-xs text-muted-foreground uppercase tracking-wide border-b border-border/50">
                 <th className="px-5 py-2 w-8"></th>
-                <th className="px-5 py-2 text-left">Beschreibung</th><th className="px-5 py-2 text-left">Zuordnung</th>
+                <th className="px-5 py-2 text-left">Beschreibung</th>
                 <th className="px-5 py-2 text-right">Betrag</th><th className="px-5 py-2 text-right">Anz.</th>
                 <th className="px-5 py-2 text-right">Häufigkeit</th><th className="px-5 py-2 text-right font-semibold">Jahresbetrag</th>
                 <th className="px-5 py-2"></th>
@@ -818,7 +738,6 @@ function KostenPage({costs,spielplan,onChange}){
                 <tr key={c.id} className="border-b border-border/30 hover:bg-muted/20 transition-colors">
                   <td className="px-5 py-1 w-8"><MoveBtn items={g.items} index={ci} allItems={costs} onChange={onChange}/></td>
                   <td className="px-5 py-2">{c.description||'-'}</td>
-                  <td className="px-5 py-2"><Badge>{TEAM_LBL[c.team]||c.team}</Badge></td>
                   <td className="px-5 py-2 text-right">{fmt(c.amount)}</td>
                   <td className="px-5 py-2 text-right text-muted-foreground">{c.quantity||1}</td>
                   <td className="px-5 py-2 text-right"><Badge>{FREQ[c.frequency]||c.frequency}</Badge></td>
@@ -908,7 +827,7 @@ function LiquiditaetPage({players,staff,costs,income,spielplan,setSpielplan}){
     const playerCost=(players||[]).reduce((sum,p)=>{
       const c=calcP(p);
       let cost=0;
-      if(m<(p.durationMonths??SAISON_REST)) cost+=c.mb+(c.uelJ+c.mjJ+c.fkJ)/12;
+      if(m<(p.durationMonths??SAISON_REST)) cost+=c.mb+c.fkJ/12;
       if(m<(p.rentMonths||0)) cost+=(p.rentMonthly||0);
       return sum+cost;
     },0);
@@ -1033,15 +952,11 @@ function OverviewPage({players,staff,costs,income,spielplan}){
   const iTotal=useMemo(()=>(income||[]).reduce((s,i)=>s+incYr(i),0),[income]);
   const ausgaben=pTotal+sTotal+cTotal;
   const ergebnis=iTotal-ausgaben;
-  const potPraemien=(players||[]).reduce((s,p)=>s+(p.praemiePunkt||0)*70+(p.praemieEinsatz||0)*28+(p.praemieAufstieg||0)+(p.praemieLandespokal||0),0);
-  const rl=(players||[]).filter(p=>p.team==='regionalliga');
-  const u23=(players||[]).filter(p=>p.team==='u23');
-  const rlCost=rl.reduce((s,p)=>{const c=calcP(p);return s+c.ges+(p.rentMonthly||0)*(p.rentMonths||0);},0);
-  const u23Cost=u23.reduce((s,p)=>{const c=calcP(p);return s+c.ges+(p.rentMonthly||0)*(p.rentMonths||0);},0);
+  const potPraemien=(players||[]).reduce((s,p)=>s+(p.praemiePunkt||0)*70+(p.praemieEinsatz||0)*28+(p.praemieAufstieg||0)+(p.praemiePokal||0),0);
   const incomeByCat=useMemo(()=>{const g={};(income||[]).forEach(i=>{if(!g[i.category])g[i.category]=0;g[i.category]+=incYr(i);});return Object.entries(g).sort((a,b)=>b[1]-a[1]);},[income]);
   const costByCat=useMemo(()=>{const g={};(costs||[]).forEach(c=>{if(!g[c.category])g[c.category]=0;g[c.category]+=costYr(c,totalGames);});return Object.entries(g).sort((a,b)=>b[1]-a[1]).slice(0,8);},[costs,totalGames]);
   const geburtstage=useMemo(()=>naechsteGeburtstage([
-    ...(players||[]).map(p=>({id:p.id,name:p.name,geburtstag:p.geburtstag,rolle:TEAM_LBL[p.team]||p.position||'Spieler'})),
+    ...(players||[]).map(p=>({id:p.id,name:p.name,geburtstag:p.geburtstag,rolle:p.position||'Spieler'})),
     ...(staff||[]).map(s=>({id:s.id,name:s.name,geburtstag:s.geburtstag,rolle:s.funktion||'Staff',istStaff:true})),
   ]),[players,staff]);
 
@@ -1095,8 +1010,7 @@ function OverviewPage({players,staff,costs,income,spielplan}){
         <Card className="p-5">
           <h2 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-4">Ausgaben nach Bereich</h2>
           <div className="space-y-3">
-            <Bar label={'Spieler RL ('+rl.length+')'} val={rlCost} tot={ausgaben} color="bg-primary"/>
-            <Bar label={'Spieler U23 ('+u23.length+')'} val={u23Cost} tot={ausgaben} color="bg-primary/60"/>
+            <Bar label={'Spieler ('+(players||[]).length+')'} val={pTotal} tot={ausgaben} color="bg-primary"/>
             <Bar label={'Staff ('+(staff||[]).length+')'} val={sTotal} tot={ausgaben} color="bg-blue-500"/>
             <Bar label={'Kostenstellen ('+(costs||[]).length+')'} val={cTotal} tot={ausgaben} color="bg-amber-500"/>
             <div className="pt-2 border-t border-border flex justify-between font-bold text-sm"><span>Gesamt Ausgaben</span><span>{fmt(ausgaben)}</span></div>
@@ -1126,8 +1040,7 @@ function OverviewPage({players,staff,costs,income,spielplan}){
       <Card className="p-5">
         <h2 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-4">Gewinn- und Verlustrechnung</h2>
         <div className="space-y-1 text-sm max-w-lg">
-          <div className="flex justify-between py-1"><span className="text-muted-foreground">Spielerkosten Regionalliga</span><span>{fmt(rlCost)}</span></div>
-          <div className="flex justify-between py-1"><span className="text-muted-foreground">Spielerkosten Oberliga (U23)</span><span>{fmt(u23Cost)}</span></div>
+          <div className="flex justify-between py-1"><span className="text-muted-foreground">Spielerkosten</span><span>{fmt(pTotal)}</span></div>
           <div className="flex justify-between py-1"><span className="text-muted-foreground">Personalkosten Staff</span><span>{fmt(sTotal)}</span></div>
           <div className="flex justify-between py-1 border-b border-border"><span className="text-muted-foreground">Sonstige Kosten</span><span>{fmt(cTotal)}</span></div>
           <div className="flex justify-between py-1 font-semibold"><span>Gesamtausgaben (fix)</span><span className="text-red-600">{fmt(ausgaben)}</span></div>
@@ -1476,7 +1389,7 @@ function TerminForm({termin,onSave,onClose,onDelete}){
         </div>
       </Field>
       <Field label={isMatch?'Gegner':'Bezeichnung'} note={isMatch?'Name des Gegners – Bregalnica wird automatisch ergänzt':undefined}>
-        <input type="text" value={d.title||''} onChange={e=>set('title',e.target.value)} placeholder={isMatch?'z.B. VfB Lübeck':d.type==='training'?'z.B. Mannschaftstraining':d.type==='trainingslager'?'z.B. Trainingslager Südtirol':'Bezeichnung'} className={cx('w-full rounded-md border bg-background px-3 py-1.5 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/40',err==='title'?'border-red-400 ring-2 ring-red-300':'border-border')}/>
+        <input type="text" value={d.title||''} onChange={e=>set('title',e.target.value)} placeholder={isMatch?'z.B. FK Rabotnički':d.type==='training'?'z.B. Mannschaftstraining':d.type==='trainingslager'?'z.B. Trainingslager Südtirol':'Bezeichnung'} className={cx('w-full rounded-md border bg-background px-3 py-1.5 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/40',err==='title'?'border-red-400 ring-2 ring-red-300':'border-border')}/>
       </Field>
       {isMatch&&(
         <Field label="Heim / Auswärts">
@@ -1494,7 +1407,7 @@ function TerminForm({termin,onSave,onClose,onDelete}){
         <Field label="Uhrzeit von"><input type="time" value={d.timeStart} onChange={e=>set('timeStart',e.target.value)} className={inpCls}/></Field>
         <Field label="Uhrzeit bis" note="optional"><input type="time" value={d.timeEnd} onChange={e=>set('timeEnd',e.target.value)} className={inpCls}/></Field>
       </div>
-      <Field label="Ort"><TxtInput value={d.location} onChange={v=>set('location',v)} placeholder="z.B. Lohmühle, Lübeck"/></Field>
+      <Field label="Ort"><TxtInput value={d.location} onChange={v=>set('location',v)} placeholder="z.B. Gradski stadion, Štip"/></Field>
       <Field label="Notizen"><textarea value={d.notes} onChange={e=>set('notes',e.target.value)} rows={2} placeholder="z.B. Treffpunkt 1,5 h vorher" className={cx(inpCls,'resize-none')}/></Field>
       {err&&<div className="flex items-center gap-2 rounded-lg bg-red-50 border border-red-200 px-3 py-2 text-sm text-red-700 font-medium"><span>⚠️</span>{err==='date'?'Bitte ein Datum angeben.':'Bitte eine Bezeichnung angeben.'}</div>}
       <div className="flex items-center justify-between gap-2 pt-2">
@@ -1930,20 +1843,17 @@ const gespraechFarbe=t=>t==null?'#dc2626':t<21?'#16a34a':t<=28?'#f59e0b':'#dc262
 function TrainingPage({roster,anwesenheit,termine,onChange,gespraeche,onChangeGespraeche}){
   const list=anwesenheit||[];
   const todayIso=isoOf(new Date());
-  // U23 (Oberliga) ist nicht Teil der Trainings-Anwesenheit.
-  const players=useMemo(()=>(roster||[]).filter(p=>p.team!=='u23'),[roster]);
+  const players=roster||[];
   const [modal,setModal]=useState(false);
   const [editEvent,setEditEvent]=useState(null);
   const [profileId,setProfileId]=useState(null);
-  const [team,setTeam]=useState('all');
   // Anwesenheits-Datensaetze liegen unter der Kalender-Termin-id (gespeichert werden NUR Abwesenheiten).
   const anwMap=useMemo(()=>{const m={};list.forEach(r=>{if(r&&r.id)m[r.id]=r;});return m;},[list]);
   // Termine aus dem Kalender (ohne "Frei"), bis einschliesslich heute – diese kann man bewerten.
   const events=useMemo(()=>(termine||[]).filter(e=>e.date&&e.type!=='sonstiges'&&e.date<=todayIso).sort((a,b)=>(b.date+(b.timeStart||'')).localeCompare(a.date+(a.timeStart||''))),[termine,todayIso]);
   // Quote/Donut: ausschliesslich Trainings.
   const countingEvents=useMemo(()=>events.filter(e=>e.type==='training'),[events]);
-  const teams=useMemo(()=>{const s=new Set(players.map(p=>p.team).filter(Boolean));return [...s];},[players]);
-  const shown=useMemo(()=>{const l=team==='all'?players:players.filter(p=>p.team===team);return [...l].sort((a,b)=>(a.team||'').localeCompare(b.team||'')||(a.name||'').localeCompare(b.name||''));},[players,team]);
+  const shown=useMemo(()=>[...players].sort((a,b)=>(a.name||'').localeCompare(b.name||'')),[players]);
   const teamTot=useMemo(()=>{let p=0,a=0;countingEvents.forEach(ev=>{const rec=anwMap[ev.id];players.forEach(pl=>{const e=rec&&rec.entries&&rec.entries[pl.id];if(e&&e.p===false)a++;else p++;});});return {p,a};},[countingEvents,anwMap,players]);
   const profile=profileId?players.find(p=>p.id===profileId):null;
   // Speichern: nur Abwesenheiten ablegen; ist alles anwesend -> Datensatz entfernen (haelt die Daten schlank).
@@ -1987,13 +1897,6 @@ function TrainingPage({roster,anwesenheit,termine,onChange,gespraeche,onChangeGe
         </div>
       </Card>
 
-      {teams.length>1&&(
-        <div className="flex gap-2 flex-wrap">
-          <button onClick={()=>setTeam('all')} className={cx('px-3 py-1.5 rounded-full text-xs font-semibold border cursor-pointer transition-all',team==='all'?'bg-foreground text-background border-transparent':'border-border bg-card hover:bg-accent text-muted-foreground')}>Alle ({players.length})</button>
-          {teams.map(t=>(<button key={t} onClick={()=>setTeam(t)} className={cx('px-3 py-1.5 rounded-full text-xs font-semibold border cursor-pointer transition-all',team===t?'bg-foreground text-background border-transparent':'border-border bg-card hover:bg-accent text-muted-foreground')}>{TEAM_LBL[t]||t} ({players.filter(p=>p.team===t).length})</button>))}
-        </div>
-      )}
-
       <Card>
         <div className="flex items-center gap-3 px-4 py-2 border-b border-border bg-muted/30 text-[10px] font-bold uppercase tracking-wider text-muted-foreground/70">
           <div className="flex-1 min-w-0">Spieler</div>
@@ -2007,7 +1910,7 @@ function TrainingPage({roster,anwesenheit,termine,onChange,gespraeche,onChangeGe
             <button key={p.id} onClick={()=>setProfileId(p.id)} className="w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-accent/40 transition-colors cursor-pointer">
               <div className="flex-1 min-w-0">
                 <div className="font-semibold text-sm truncate">{p.name||'–'}</div>
-                <div className="text-[11px] text-muted-foreground truncate">{p.position||'—'}{p.team?' · '+(TEAM_LBL[p.team]||p.team):''}</div>
+                <div className="text-[11px] text-muted-foreground truncate">{p.position||'—'}</div>
               </div>
               <div className="w-28 shrink-0 hidden sm:block">
                 <div className="h-2 rounded-full bg-muted overflow-hidden"><div className="h-full rounded-full" style={{width:(q||0)+'%',background:q==null?'#cbd5e1':q>=75?'#16a34a':q>=50?'#f59e0b':'#dc2626'}}/></div>
@@ -2220,7 +2123,7 @@ function App({role,onLogout}){
   useEffect(()=>{if(!isAdmin)return;const s=JSON.stringify(wohnungen);if(syncRef.current.wohnungen===s)return;syncRef.current.wohnungen=s;fsSet('wohnungen',wohnungen);},[wohnungen]);
   useEffect(()=>{if(!canEditTermine)return;const s=JSON.stringify(termine);if(syncRef.current.termine===s)return;syncRef.current.termine=s;fsSet('termine',termine);},[termine]);
   // Kader-Spiegel: Admin schreibt NUR Name/Position/Team (keine Gehälter!) nach 'kader' – für den Trainer lesbar.
-  useEffect(()=>{if(!isAdmin)return;const mirror=(players||[]).map(p=>({id:p.id,name:p.name,position:p.position,team:p.team,geburtstag:p.geburtstag||''}));const s=JSON.stringify(mirror);if(syncRef.current.kader===s)return;syncRef.current.kader=s;fsSet('kader',mirror);},[players]);
+  useEffect(()=>{if(!isAdmin)return;const mirror=(players||[]).map(p=>({id:p.id,name:p.name,position:p.position,geburtstag:p.geburtstag||''}));const s=JSON.stringify(mirror);if(syncRef.current.kader===s)return;syncRef.current.kader=s;fsSet('kader',mirror);},[players]);
   // Anwesenheit: Admin + Trainer dürfen schreiben.
   useEffect(()=>{if(!canTraining)return;const s=JSON.stringify(anwesenheit);if(syncRef.current.anwesenheit===s)return;syncRef.current.anwesenheit=s;fsSet('anwesenheit',anwesenheit);},[anwesenheit]);
   useEffect(()=>{if(!canTraining)return;const s=JSON.stringify(gespraeche);if(syncRef.current.gespraeche===s)return;syncRef.current.gespraeche=s;fsSet('gespraeche',gespraeche);},[gespraeche]);
@@ -2270,7 +2173,7 @@ function App({role,onLogout}){
         <div className="p-4 border-b border-sidebar-border">
           <div className="flex items-center gap-3">
             <div className="w-9 h-9 rounded-lg bg-white flex items-center justify-center flex-shrink-0 shadow-sm overflow-hidden"><LogoMark className="w-7 h-7 object-contain"/></div>
-            <div><div className="font-bold text-sm leading-tight">FK Bregalnica Štip</div><div className="text-xs opacity-70">Lübeck – {isAdmin?'Budget 26/27':'Terminkalender'}</div></div>
+            <div><div className="font-bold text-sm leading-tight">FK Bregalnica Štip</div><div className="text-xs opacity-70">Štip – {isAdmin?'Budget 26/27':'Terminkalender'}</div></div>
           </div>
         </div>
         <nav className="flex-1 p-2 space-y-0.5 overflow-y-auto">

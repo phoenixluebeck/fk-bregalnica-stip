@@ -27,14 +27,50 @@ ausschließlich für **FK Bregalnica Štip** (Phönix Lübeck läuft in einer se
   genau wie beim Phönix-Setup (`phx-verify` → `/tmp/phxcal`). Nach jeder Code-Änderung Dateien erneut nach
   `/tmp/bregalnica_verify/` kopieren, um zu verifizieren.
 
+- **Live deployed via GitHub Pages**: Repo `phoenixluebeck/fk-bregalnica-stip` (eigener Account des Users,
+  NICHT das anfangs versuchte `phoenixluebeck/fkbregalnica` — dort gab es nur Read-Zugriff/Token-Probleme).
+  → App live unter **https://phoenixluebeck.github.io/fk-bregalnica-stip/** (verifiziert: 200, Login-Screen,
+  relative Pfade für `phoenix-logo.js`/`icons/` funktionieren korrekt unter dem Pages-Unterpfad).
+  Push erfolgt über einen dedizierten **Deploy Key** (SSH, Write-Access), nicht über HTTPS/PAT:
+  - Lokaler Key: `~/.ssh/bregalnica_stip` (+ `.pub`), SSH-Alias in `~/.ssh/config`: `github-bregalnica`
+  - Remote: `git@github-bregalnica:phoenixluebeck/fk-bregalnica-stip.git`
+  - Deploy Key ist im Repo unter Settings → Deploy keys mit "Allow write access" hinterlegt.
+  - Für künftige Deploys: im Projektordner `git add -A && git commit -m "..." && git push` (Remote ist bereits
+    per SSH-Alias korrekt gesetzt).
+  - GitHub Pages Setting: Branch `main`, Ordner `/ (root)`.
+
+- **Deutsche Abgaben-Felder durch Nordmazedonien-Berechnung ersetzt**: ÜL-Pauschale, Minijob, LNK (23%) und VBG
+  komplett entfernt (Checkboxen, Konstanten `UEL/MINIJOB/MINIJOB_NET`, Funktionen `lnkOf/vbgP/vbgS`, alle
+  Tabellen-Spalten, CSV-Exporte, Kader-Tabs „Minijob"/„ÜL-Pauschale").
+  Neu: `mkNetto(bruttoMonat)` (index.html Zeile ~178) berechnet Sozialabgaben (28% AN-Anteil: Rente 18,8% +
+  Kranken 7,5% + Arbeitslosen 1,2% + Zusatz-KV 0,5%) + Lohnsteuer (10% Flat-Tax auf Brutto − Sozialabgaben −
+  Freibetrag ~167€/Monat) → Netto. Wichtig: In Nordmazedonien zahlt der **Arbeitgeber keine eigenen
+  Lohnnebenkosten** (anders als Deutschland) — AG-Kosten = Bruttogehalt selbst, kein Aufschlag mehr in
+  `calcP`/`calcS`. Die Netto-Berechnung erscheint als eigene Box in `PlayerForm`/`StaffForm`; CSV-Exporte
+  (Kader + Staff) enthalten jetzt Sozialabgaben/Lohnsteuer/Netto statt LNK/VBG.
+  Verifiziert nach `/tmp/bregalnica_verify/`: Login-Screen lädt weiterhin fehlerfrei, keine Konsolenfehler
+  (bestätigt, dass Babel das gesamte Script inkl. aller JSX-Änderungen fehlerfrei transpiliert).
+
+- **Liga/Verband/Ort auf Nordmazedonien umgestellt** + **nur eine Mannschaft** (kein Regionalliga/U23-Split mehr):
+  - Liga-Bezeichnung im Kalender: „Regionalliga" → **„Prva Liga"** (Macedonian First Football League), kurz „PL"
+    (`TERMIN_TYPEN`, index.html Zeile ~102 — die interne ID `'regionalliga'` blieb unverändert, nur das Label).
+  - Einnahmen-Kategorie „DFB/Verband" → **„FFM/Verband"** (Football Federation of North Macedonia).
+  - „Landespokalprämie" → **„Pokalprämie"** (Bezug: Kup na Makedonija) — Feld `praemieLandespokal` →
+    `praemiePokal` umbenannt (PlayerForm, KaderPage-Tabelle/CSV, OverviewPage).
+  - Platzhaltertexte: „VfB Lübeck" → „FK Rabotnički" (Gegner-Beispiel), „Lohmühle, Lübeck" → „Gradski stadion,
+    Štip" (Ort-Beispiel), Login-Footer „Lübeck" → „Štip".
+  - **Mannschafts-Konzept komplett entfernt** (`team: 'regionalliga'/'u23'`, `TEAM_LBL`, U23/Oberliga existieren
+    nicht mehr): kein Mannschafts-Feld mehr in `PlayerForm`, `KaderPage` zeigt einen flachen Kader ohne Tabs,
+    `CostForm`/`KostenPage` ohne „Zuordnung"-Feld/Filter (ergab bei nur einer Mannschaft keinen Sinn mehr),
+    `OverviewPage` zeigt eine einzelne „Spielerkosten"-Zeile statt RL/U23-Split, `TrainingPage` vereinfacht
+    (Team-Filter-Buttons entfernt, da nur noch eine Gruppe existiert).
+  - Verifiziert nach `/tmp/bregalnica_verify/`: Login-Screen lädt weiterhin fehlerfrei, keine Konsolenfehler.
+
 ## OFFEN – nächste Schritte (mit dem User)
 1. **Firestore-Regeln publishen**: falls noch nicht geschehen — Inhalt aus `firestore.rules` in der Firebase
    Console (Firestore Database → Rules) einfügen und **Publish** klicken.
-2. **Post-Login testen**: mit echtem Admin-Konto einloggen und prüfen, ob Budget-Daten geladen/gespeichert werden
-   (Firestore-Zugriff, Regeln greifen korrekt).
-3. **Deploy**: eigene Netlify-Seite / eigenes Git-Repo (dieser Ordner ist noch KEIN Git-Repo).
-
-## Noch aus Phönix-Kontext (bei Bedarf anpassen)
-- Team-/Liga-Bezeichnungen „Regionalliga/U23/Oberliga" (rein deutsch).
-- Deutsche Abgaben-Felder in der Budgetrechnung: ÜL-Pauschale (275 €), Minijob (1200 €), LNK (23 %), VBG.
-  → Für Nordmazedonien ggf. anpassen/entfernen, sobald die Struktur bekannt ist.
+2. **Post-Login testen**: auf der Live-Seite mit echtem Admin-Konto einloggen und prüfen, ob Budget-Daten
+   geladen/gespeichert werden (Firestore-Zugriff, Regeln greifen korrekt) — inkl. neuer Netto-Berechnung und
+   dem vereinfachten (Ein-Mannschaft-)Kader im Spieler-/Staff-Formular.
+3. Aktuellen Stand nach GitHub pushen (`git add -A && git commit -m "..." && git push`), damit die Live-Seite
+   alle Änderungen (Nordmazedonien-Abgaben, Liga/Verband-Umbenennung, Ein-Mannschaft-Kader) zeigt.
