@@ -1,0 +1,2355 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Budget 2026/27 – FK Bregalnica Štip</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script>
+tailwind.config={darkMode:'class',theme:{extend:{colors:{
+  border:'hsl(var(--border))',background:'hsl(var(--background))',foreground:'hsl(var(--foreground))',
+  card:{DEFAULT:'hsl(var(--card))',foreground:'hsl(var(--card-foreground))'},
+  primary:{DEFAULT:'hsl(var(--primary))',foreground:'hsl(var(--primary-foreground))'},
+  secondary:{DEFAULT:'hsl(var(--secondary))',foreground:'hsl(var(--secondary-foreground))'},
+  muted:{DEFAULT:'hsl(var(--muted))',foreground:'hsl(var(--muted-foreground))'},
+  accent:{DEFAULT:'hsl(var(--accent))',foreground:'hsl(var(--accent-foreground))'},
+  sidebar:{DEFAULT:'hsl(var(--sidebar))',foreground:'hsl(var(--sidebar-foreground))',border:'hsl(var(--sidebar-border))',accent:'hsl(var(--sidebar-accent))','accent-foreground':'hsl(var(--sidebar-accent-foreground))'},
+}}}}
+</script>
+<script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
+<script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
+<script src="https://unpkg.com/@babel/standalone@7.26.4/babel.min.js" crossorigin></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
+<script src="phoenix-logo.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+:root{
+  --background:220 23% 97%;--foreground:222 22% 14%;--border:220 16% 90%;
+  --card:0 0% 100%;--card-foreground:222 22% 14%;
+  --sidebar:202 80% 34%;--sidebar-foreground:0 0% 98%;--sidebar-border:202 70% 27%;
+  --sidebar-accent:202 74% 41%;--sidebar-accent-foreground:0 0% 98%;
+  --primary:202 84% 42%;--primary-foreground:0 0% 100%;
+  --secondary:220 16% 95%;--secondary-foreground:222 22% 14%;
+  --muted:220 18% 95.5%;--muted-foreground:220 10% 46%;
+  --accent:220 16% 94%;--accent-foreground:222 22% 14%;
+  --ring:202 84% 42%;
+}
+.dark{
+  --background:222 18% 9%;--foreground:220 14% 96%;--border:220 12% 20%;
+  --card:222 16% 12%;--card-foreground:220 14% 96%;
+  --sidebar:202 55% 17%;--sidebar-foreground:220 14% 96%;--sidebar-border:202 50% 13%;
+  --sidebar-accent:202 50% 24%;--sidebar-accent-foreground:220 14% 96%;
+  --primary:202 84% 50%;--primary-foreground:0 0% 100%;
+  --secondary:220 12% 18%;--secondary-foreground:220 14% 96%;
+  --muted:220 12% 19%;--muted-foreground:220 10% 62%;
+  --accent:220 12% 18%;--accent-foreground:220 14% 96%;
+  --ring:202 84% 50%;
+}
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale;letter-spacing:-0.011em}
+input[type=number]::-webkit-inner-spin-button,input[type=number]::-webkit-outer-spin-button{-webkit-appearance:none}
+input[type=number]{-moz-appearance:textfield}
+.safe-area-pb{padding-bottom:env(safe-area-inset-bottom,0px)}
+/* Feine, mehrlagige Schatten für den cleanen SaaS-Look */
+.shadow-soft{box-shadow:0 1px 2px rgba(16,24,40,.04),0 1px 3px rgba(16,24,40,.06)}
+.shadow-card{box-shadow:0 1px 2px rgba(16,24,40,.04),0 4px 16px -4px rgba(16,24,40,.08)}
+.shadow-pop{box-shadow:0 4px 12px -2px rgba(16,24,40,.10),0 12px 32px -8px rgba(16,24,40,.16)}
+.dark .shadow-soft,.dark .shadow-card,.dark .shadow-pop{box-shadow:0 1px 2px rgba(0,0,0,.4),0 8px 24px -8px rgba(0,0,0,.5)}
+/* dezente, moderne Scrollbar */
+*::-webkit-scrollbar{width:10px;height:10px}
+*::-webkit-scrollbar-thumb{background:hsl(var(--border));border-radius:99px;border:3px solid transparent;background-clip:content-box}
+*::-webkit-scrollbar-thumb:hover{background:hsl(var(--muted-foreground)/.5);background-clip:content-box}
+*::-webkit-scrollbar-track{background:transparent}
+</style>
+</head>
+<body class="bg-background text-foreground">
+<div id="root"></div>
+<script type="text/babel" data-presets="react">
+const {useState,useEffect,useRef,useMemo}=React;
+
+// ─── KONSTANTEN ──────────────────────────────────────────────────────────────
+const MONTHS=['Jul','Aug','Sep','Okt','Nov','Dez','Jan','Feb','Mär','Apr','Mai','Jun'];
+const DEFAULT_SP=[0,3,3,4,3,2,2,3,4,4,3,3]; // 34 Spiele (Juli = Vorbereitung)
+const COST_CATS=['Spielbetrieb','Ausstattung','Reisekosten','Platzmiete','Schiedsrichter','Verbandsabgaben','Versicherungen','Medizinisch','Catering','Marketing','Verwaltung','Unterkunft','Sonstiges'];
+const COST_SUBCATS={
+  Unterkunft:['Wohnungen','Hotel','Pension','WG'],
+  Ausstattung:['Trikots/Bekleidung','Sportgeräte','Büroausstattung','IT/EDV'],
+  Reisekosten:['Bus/Transport','Flüge','Hotel','Spesen','Mietwagen'],
+  Medizinisch:['Physiotherapie','Arzt','Medikamente','Sportmedizin'],
+  Catering:['Heimspiele','Auswärtsspiele','Training','Teamevents'],
+  Marketing:['Werbung','Social Media','Druck/Print','Fotografie'],
+  Verwaltung:['Bürokosten','Buchhaltung','Rechtsberatung'],
+  Spielbetrieb:['Spielbälle','SR-Gebühren','Netzwerkmaterial','Torwartausstattung'],
+};
+const INCOME_CATS=['Ticketing','Sponsoring','TV/Medien','Fördergelder','Merchandising','Mitgliedsbeiträge','DFB/Verband','Sonstiges'];
+const FREQ={monthly:'Monatlich',yearly:'Jährlich',per_game:'Pro Spiel',once:'Einmalig'};
+const TEAM_LBL={regionalliga:'Regionalliga',u23:'Oberliga (U23)',both:'Beide Mannschaften'};
+const UEL=275, MINIJOB=1200, MINIJOB_NET=603; // MINIJOB: AG zahlt 1.200 €, Spieler erhält 603 € netto
+const GROSS_UP=1/0.65; // Netto-Vorteile → Brutto-Äquivalent (~35% Abgaben)
+// Verbleibende Saisonmonate – Saison 01.07.2026 bis 30.06.2027
+const _n=new Date(),_elapsed=Math.max(0,(_n.getFullYear()-2026)*12+_n.getMonth()-6);
+const SAISON_REST=Math.max(0,12-_elapsed); // 12 im Juli, 11 im Aug, ... 0 ab Juli 2027
+const K={th:'phx_th'}; // nur Dark-Mode bleibt lokal
+const LOGO=(typeof window!=='undefined'&&window.PHOENIX_LOGO)||'';
+
+// ─── KALENDER / TERMINE ───────────────────────────────────────────────────────
+const TYP_IMG_RL='';
+const TERMIN_TYPEN=[
+  {id:'regionalliga', label:'Regionalliga',   kurz:'RL',    icon:'⚽', img:TYP_IMG_RL, dot:'bg-red-500',     badge:'bg-red-100 text-red-800',       hex:'#dc2626', grad:'from-red-600 to-red-500'},
+  {id:'pokal',        label:'Pokalspiel',     kurz:'Pokal', icon:'🏆', dot:'bg-amber-500',   badge:'bg-amber-100 text-amber-800',   hex:'#d97706', grad:'from-amber-500 to-yellow-500'},
+  {id:'testspiel',    label:'Testspiel',      kurz:'Test',  icon:'⚽', dot:'bg-blue-500',    badge:'bg-blue-100 text-blue-800',     hex:'#2563eb', grad:'from-blue-600 to-blue-500'},
+  {id:'training',     label:'Training',       kurz:'Tr.',   icon:'🏋️‍♂️', dot:'bg-emerald-500', badge:'bg-emerald-100 text-emerald-800',hex:'#059669', grad:'from-emerald-600 to-emerald-500'},
+  {id:'teambuilding', label:'Teambuilding',   kurz:'Team',  icon:'🍺', dot:'bg-violet-500',  badge:'bg-violet-100 text-violet-800', hex:'#7c3aed', grad:'from-violet-600 to-purple-500'},
+  {id:'trainingslager',label:'Trainingslager',kurz:'Lager', icon:'🏕️', dot:'bg-teal-500',    badge:'bg-teal-100 text-teal-800',     hex:'#0d9488', grad:'from-teal-600 to-cyan-500'},
+  {id:'teamsitzung',  label:'Teamsitzung',    kurz:'Sitzung',icon:'🗣️', dot:'bg-indigo-500',  badge:'bg-indigo-100 text-indigo-800', hex:'#4f46e5', grad:'from-indigo-600 to-indigo-500'},
+  {id:'essen',        label:'Essen',          kurz:'Essen', icon:'🍽️', dot:'bg-orange-500',  badge:'bg-orange-100 text-orange-800', hex:'#ea580c', grad:'from-orange-600 to-orange-500'},
+  {id:'sonstiges',    label:'Frei',           kurz:'Frei',  icon:'😴', dot:'bg-slate-400',   badge:'bg-slate-100 text-slate-700',   hex:'#64748b', grad:'from-slate-500 to-slate-400'},
+];
+const tTyp=id=>TERMIN_TYPEN.find(t=>t.id===id)||TERMIN_TYPEN[TERMIN_TYPEN.length-1];
+const WTAGE=['Mo','Di','Mi','Do','Fr','Sa','So'];
+const MONATE_LANG=['Januar','Februar','März','April','Mai','Juni','Juli','August','September','Oktober','November','Dezember'];
+const fmtDatum=iso=>{if(!iso)return'';const d=new Date(iso+'T00:00:00');return d.toLocaleDateString('de-DE',{weekday:'short',day:'2-digit',month:'2-digit',year:'numeric'});};
+const fmtDatumLang=iso=>{if(!iso)return'';const d=new Date(iso+'T00:00:00');return d.toLocaleDateString('de-DE',{weekday:'long',day:'numeric',month:'long',year:'numeric'});};
+
+// ─── GEBURTSTAGE ──────────────────────────────────────────────────────────────
+// geburtstag wird als ISO 'YYYY-MM-DD' gespeichert. Alter wird nur bei plausiblem Jahr angezeigt.
+const gebAlter=(iso,ref)=>{if(!iso)return null;const b=new Date(iso+'T00:00:00');if(isNaN(b))return null;const r=ref||new Date();let a=r.getFullYear()-b.getFullYear();const m=r.getMonth()-b.getMonth();if(m<0||(m===0&&r.getDate()<b.getDate()))a--;return(a>=0&&a<120)?a:null;};
+// Tage bis zum naechsten Geburtstag (heute = 0)
+const tageBisGeb=iso=>{if(!iso)return null;const b=new Date(iso+'T00:00:00');if(isNaN(b))return null;const n=new Date();const r=new Date(n.getFullYear(),n.getMonth(),n.getDate());let next=new Date(r.getFullYear(),b.getMonth(),b.getDate());if(next<r)next=new Date(r.getFullYear()+1,b.getMonth(),b.getDate());return Math.round((next-r)/86400000);};
+// Personen mit Geburtstag, sortiert nach naechstem Termin; wirdAlt = Alter am naechsten Geburtstag
+const naechsteGeburtstage=people=>(people||[]).filter(p=>p&&p.geburtstag).map(p=>{const tage=tageBisGeb(p.geburtstag);const cur=gebAlter(p.geburtstag);return{...p,tage,wirdAlt:cur==null?null:(tage===0?cur:cur+1)};}).sort((a,b)=>(a.tage??999)-(b.tage??999));
+const gebTageText=t=>t==null?'':t===0?'heute 🎉':t===1?'morgen':'in '+t+' Tagen';
+const gebRolle=p=>p.rolle||p.position||p.funktion||(p.team?(TEAM_LBL[p.team]||p.team):'')||'';
+// Geburtstags-Vorkommen (als Pseudo-Termine {_geb:true}) im Zeitraum [startIso,endIso] – fuer den PDF-Plan.
+function gebOccurrences(people,startIso,endIso){
+  const out=[];if(!startIso||!endIso)return out;
+  const ys=+startIso.slice(0,4),ye=+endIso.slice(0,4);
+  (people||[]).forEach(p=>{
+    if(!p||!p.geburtstag||!p.name||p.geburtstag.length<10)return;
+    const mmdd=p.geburtstag.slice(5);
+    for(let y=ys;y<=ye;y++){const iso=y+'-'+mmdd;if(iso>=startIso&&iso<=endIso)out.push({_geb:true,date:iso,name:p.name,rolle:gebRolle(p),alter:p.istStaff?null:gebAlter(p.geburtstag,new Date(iso+'T00:00:00'))});}
+  });
+  return out;
+}
+
+// ─── FIREBASE ─────────────────────────────────────────────────────────────────
+firebase.initializeApp({
+  apiKey:'AIzaSyConeMqb9ikNIUi7mbuwPmz6tdxZYPLfE0',
+  authDomain:'fk-bregalnica-stip.firebaseapp.com',
+  projectId:'fk-bregalnica-stip',
+  storageBucket:'fk-bregalnica-stip.firebasestorage.app',
+  messagingSenderId:'963069690469',
+  appId:'1:963069690469:web:36ef0ceb49a229f1c53c8c',
+});
+const db=firebase.firestore();
+const auth=firebase.auth();
+const COL='budget2627';
+const fsSet=(doc,data)=>db.collection(COL).doc(doc).set({data});
+
+
+// ─── ANMELDUNG & ROLLEN (echte Firebase-Authentifizierung) ────────────────────
+// Die Passwörter liegen NICHT mehr hier, sondern sicher in Firebase Authentication.
+// Jede Rolle hat ein eigenes Konto. E-Mails werden in der Firebase Console angelegt.
+const AUTH_EMAIL={
+  admin:'admin@bregalnica-stip.de',
+};
+const emailToRole=email=>{const e=(email||'').toLowerCase();for(const r in AUTH_EMAIL){if(AUTH_EMAIL[r]===e)return r;}return null;};
+const VALID_ROLES=['admin'];
+const ROLLE_LBL={admin:'Administrator'};
+
+// ─── STORAGE ─────────────────────────────────────────────────────────────────
+const load=(k,d)=>{try{const v=localStorage.getItem(k);return v!==null?JSON.parse(v):d;}catch{return d;}};
+const save=(k,v)=>{try{localStorage.setItem(k,JSON.stringify(v));}catch{}};
+const uid=()=>Math.random().toString(36).slice(2,9)+Date.now().toString(36);
+const cx=(...a)=>a.filter(Boolean).join(' ');
+const fmt=n=>new Intl.NumberFormat('de-DE',{style:'currency',currency:'EUR',minimumFractionDigits:0,maximumFractionDigits:0}).format(n||0);
+
+// ─── BERECHNUNGEN ─────────────────────────────────────────────────────────────
+const LNK_FREI=349; // bis 349 €/Monat: keine Lohnnebenkosten & keine VBG
+const lnkOf=(j,bm)=>bm<=LNK_FREI?0:j*0.23;
+const vbgP=(j,bm)=>bm<=LNK_FREI?0:Math.min(j,120000)*71.595*5/1000;
+const vbgS=(j,bm)=>bm<=LNK_FREI?0:j*2.45*0.00495;
+
+function calcP(p){
+  const bm=p.bruttoMonat||0, bj=bm*12, l=lnkOf(bj,bm), v=vbgP(bj,bm);
+  const jb=bj+l+v, mb=jb/12, dur=Math.max(1,p.durationMonths??SAISON_REST);
+  const sb=mb*dur;
+  const uelJ=p.hasUebungsleiter?UEL*12:0, mjJ=p.hasMinijob?MINIJOB*12:0;
+  const fkJ=(p.fahrtkosten||0)*12; // Fahrtkostenerstattung (steuerfrei)
+  const zs=(uelJ+mjJ+fkJ)/12*dur;
+  const mbTotal=mb+(uelJ+mjJ+fkJ)/12;
+  return {bj,lnk:l,vbg:v,jb,mb,mbTotal,sb,uelJ,mjJ,fkJ,zs,ges:sb+zs};
+}
+function calcS(s){
+  const bm=s.bruttoMonat||0, bj=bm*12, l=lnkOf(bj,bm), v=vbgS(bj,bm);
+  const jb=bj+l+v+(s.bonusYear||0), mb=jb/12, dur=Math.max(1,s.durationMonths??SAISON_REST);
+  const sb=mb*dur;
+  const uelJ=s.hasUebungsleiter?UEL*12:0, mjJ=s.hasMinijob?MINIJOB*12:0;
+  const zs=(uelJ+mjJ)/12*dur;
+  const mbTotal=mb+(uelJ+mjJ)/12;
+  return {bj,lnk:l,vbg:v,jb,mb,mbTotal,sb,uelJ,mjJ,zs,ges:sb+zs};
+}
+const costYr=(c,tg)=>{const b=(c.amount||0)*(c.quantity||1);return c.frequency==='monthly'?b*12:c.frequency==='per_game'?b*(tg||34):b;};
+const costMo=(c,m,g)=>{const b=(c.amount||0)*(c.quantity||1);if(c.frequency==='monthly')return b;if(c.frequency==='per_game')return b*g;if(c.frequency==='yearly')return b/12;if(c.frequency==='once')return(c.month||0)===m?b:0;return 0;};
+const incYr=i=>{const b=(i.amount||0)*(i.quantity||1);return i.frequency==='monthly'?b*12:b;};
+const incMo=(i,m)=>{const b=(i.amount||0)*(i.quantity||1);if(i.frequency==='monthly')return b;if(i.frequency==='yearly')return b/12;if(i.frequency==='once')return(i.month||0)===m?b:0;return 0;};
+
+// ─── ERROR BOUNDARY ───────────────────────────────────────────────────────────
+class ErrorBoundary extends React.Component {
+  state={err:null};
+  static getDerivedStateFromError(err){return{err};}
+  render(){
+    if(this.state.err)return(
+      <div className="p-8">
+        <h2 className="text-red-600 font-bold text-lg mb-2">Fehler beim Laden</h2>
+        <pre className="text-sm bg-red-50 text-red-800 p-4 rounded overflow-auto whitespace-pre-wrap">{String(this.state.err)}</pre>
+        <p className="text-sm text-muted-foreground mt-3">Bitte Konsole (F12) prüfen für Details.</p>
+      </div>
+    );
+    return this.props.children;
+  }
+}
+
+// ─── UI PRIMITIVES ────────────────────────────────────────────────────────────
+function Btn({onClick,children,variant='default',size='sm',disabled,className=''}){
+  const V={default:'bg-primary text-primary-foreground shadow-soft hover:brightness-110 active:brightness-95',outline:'border border-border bg-card hover:bg-accent text-foreground shadow-soft',ghost:'hover:bg-accent text-foreground',danger:'bg-red-600 text-white shadow-soft hover:brightness-110',success:'bg-emerald-600 text-white shadow-soft hover:brightness-110'};
+  const S={xs:'px-2.5 py-1 text-xs',sm:'px-3 py-1.5 text-sm',md:'px-4 py-2.5 text-sm'};
+  return <button onClick={onClick} disabled={disabled} className={cx('inline-flex items-center justify-center gap-1.5 rounded-lg font-medium transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed disabled:shadow-none',V[variant]||V.default,S[size]||S.sm,className)}>{children}</button>;
+}
+
+// onFocus select → "0" wird sofort ersetzt wenn man tippt
+function NumInput({value,onChange,min=0,max,step,className=''}){
+  return <input type="number" value={value??0} onChange={e=>onChange(parseFloat(e.target.value)||0)} onFocus={e=>e.target.select()} min={min} max={max} step={step} className={cx('w-full rounded-md border border-border bg-background px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary/40',className)}/>;
+}
+function TxtInput({value,onChange,placeholder='',className=''}){
+  return <input type="text" value={value||''} onChange={e=>onChange(e.target.value)} placeholder={placeholder} className={cx('w-full rounded-md border border-border bg-background px-3 py-1.5 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/40',className)}/>;
+}
+function Sel({value,onChange,children,className=''}){
+  return <select value={value} onChange={e=>onChange(e.target.value)} className={cx('w-full rounded-md border border-border bg-background px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary/40 cursor-pointer',className)}>{children}</select>;
+}
+function Chk({id,checked,onChange,label}){
+  return <label htmlFor={id} className="flex items-center gap-2 cursor-pointer text-sm select-none"><input type="checkbox" id={id} checked={!!checked} onChange={e=>onChange(e.target.checked)} className="w-4 h-4 accent-primary rounded"/><span>{label}</span></label>;
+}
+function Field({label,children,note,className=''}){
+  return <div className={cx('space-y-1',className)}><label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">{label}</label>{children}{note&&<p className="text-xs text-muted-foreground">{note}</p>}</div>;
+}
+function Card({children,className='',onClick}){
+  return <div onClick={onClick} className={cx('rounded-2xl border border-border bg-card text-card-foreground shadow-soft',className)}>{children}</div>;
+}
+function Modal({open,onClose,title,children,wide=false}){
+  useEffect(()=>{
+    if(!open)return;
+    const h=e=>{if(e.key==='Escape')onClose();};
+    document.addEventListener('keydown',h);
+    return()=>document.removeEventListener('keydown',h);
+  },[open,onClose]);
+  if(!open)return null;
+  return(
+    <div className="fixed inset-0 z-50 flex items-end md:items-center justify-center md:p-4">
+      <div className="absolute inset-0 bg-slate-900/40 backdrop-blur-[3px]" onClick={onClose}/>
+      <div className={cx('relative z-10 w-full rounded-t-2xl rounded-b-none md:rounded-2xl border border-border bg-card shadow-pop flex flex-col max-h-[92vh]',wide?'md:max-w-2xl':'md:max-w-lg')}>
+        <div className="md:hidden mx-auto mt-2.5 mb-0.5 h-1.5 w-10 rounded-full bg-border shrink-0"/>
+        <div className="flex items-center justify-between border-b border-border px-6 py-4 shrink-0">
+          <h2 className="text-base font-semibold tracking-tight">{title}</h2>
+          <button onClick={onClose} aria-label="Schließen" className="text-muted-foreground hover:text-foreground text-xl leading-none cursor-pointer w-8 h-8 flex items-center justify-center rounded-lg hover:bg-accent transition-colors">✕</button>
+        </div>
+        <div className="overflow-y-auto p-6 space-y-4 flex-1">{children}</div>
+      </div>
+    </div>
+  );
+}
+function StatCard({label,value,sub,color,icon}){
+  return <Card className="p-5"><div className="flex items-start justify-between"><div><p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1">{label}</p><p className={cx('text-2xl font-bold',color||'text-foreground')}>{value}</p>{sub&&<p className="text-xs text-muted-foreground mt-1">{sub}</p>}</div>{icon&&<div className="text-2xl opacity-20 mt-0.5">{icon}</div>}</div></Card>;
+}
+function Badge({children,color}){
+  const C={default:'bg-secondary text-secondary-foreground',green:'bg-emerald-100 text-emerald-800',red:'bg-red-100 text-red-800',amber:'bg-amber-100 text-amber-800'};
+  return <span className={cx('inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium',C[color||'default']||C.default)}>{children}</span>;
+}
+function Empty({msg,action}){
+  return <div className="flex flex-col items-center justify-center py-16 text-center"><div className="text-4xl mb-3 opacity-20">📋</div><p className="text-muted-foreground text-sm">{msg}</p>{action&&<div className="mt-4">{action}</div>}</div>;
+}
+function LogoMark({className='',alt='FK Bregalnica Štip'}){
+  if(LOGO)return <img src={LOGO} alt={alt} className={className} draggable={false}/>;
+  return <span className={cx('inline-flex items-center justify-center font-bold',className)}>B</span>;
+}
+// Termin-Icon: zeigt ein Bild (z.B. Liga-Logo) wenn vorhanden, sonst das Emoji.
+// className steuert die Schriftgröße (Emoji) bzw. via h-/w-[1em] auch die Bildgröße.
+function TypIcon({t,className=''}){
+  if(t&&t.img&&t.img.indexOf('data:')===0)return <img src={t.img} alt="" draggable={false} className={cx('inline-block object-contain align-[-0.2em] bg-white rounded-[3px] p-[1px]',className)}/>;
+  return <span className={className}>{t?t.icon:''}</span>;
+}
+
+// Reihenfolge verschieben – funktioniert auch mit gefilterten/gruppierten Listen
+const swapById=(arr,id1,id2)=>{const i=arr.findIndex(x=>x.id===id1),j=arr.findIndex(x=>x.id===id2);if(i<0||j<0)return arr;const a=[...arr];[a[i],a[j]]=[a[j],a[i]];return a;};
+function MoveBtn({items,index,allItems,onChange}){
+  const canUp=index>0,canDown=index<items.length-1;
+  return(
+    <span className="flex flex-col items-center -my-1">
+      <button onClick={()=>onChange(swapById(allItems,items[index].id,items[index-1].id))} disabled={!canUp} className="text-xs text-muted-foreground hover:text-foreground disabled:opacity-20 cursor-pointer disabled:cursor-default leading-none p-0.5" title="Nach oben">▲</button>
+      <button onClick={()=>onChange(swapById(allItems,items[index].id,items[index+1].id))} disabled={!canDown} className="text-xs text-muted-foreground hover:text-foreground disabled:opacity-20 cursor-pointer disabled:cursor-default leading-none p-0.5" title="Nach unten">▼</button>
+    </span>
+  );
+}
+
+// Löschen mit Inline-Bestätigung – kein window.confirm
+function DelBtn({onDelete}){
+  const [ask,setAsk]=useState(false);
+  if(ask)return(
+    <span className="flex items-center gap-1 text-xs whitespace-nowrap">
+      <span className="text-muted-foreground">Sicher?</span>
+      <button onClick={()=>{onDelete();setAsk(false);}} className="text-red-600 font-bold cursor-pointer px-1 hover:underline">Ja</button>
+      <button onClick={()=>setAsk(false)} className="text-muted-foreground cursor-pointer px-1 hover:underline">Nein</button>
+    </span>
+  );
+  return <button onClick={()=>setAsk(true)} title="Löschen" className="hover:text-red-500 transition-colors cursor-pointer p-1 rounded">🗑</button>;
+}
+
+// ─── PLAYER FORM ──────────────────────────────────────────────────────────────
+function PlayerForm({player,team,onSave,onClose}){
+  const [d,setD]=useState({
+    name:'',position:'',team:team||'regionalliga',geburtstag:'',
+    bruttoMonat:0,durationMonths:SAISON_REST,
+    hasUebungsleiter:false,hasMinijob:false,fahrtkosten:0,
+    rentMonthly:0,rentMonths:0,notes:'',
+    praemiePunkt:0,praemieEinsatz:0,praemieAufstieg:0,praemieLandespokal:0,
+    ...(player||{})
+  });
+  const set=(k,v)=>setD(p=>({...p,[k]:v}));
+  const c=useMemo(()=>calcP(d),[d]);
+  const ms=(d.rentMonthly||0)*(d.rentMonths||0);
+  const hasPraemien=(d.praemiePunkt>0||d.praemieEinsatz>0||d.praemieAufstieg>0||d.praemieLandespokal>0);
+
+  return(
+    <div className="space-y-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <Field label="Name"><TxtInput value={d.name} onChange={v=>set('name',v)} placeholder="Vorname Nachname"/></Field>
+        <Field label="Position"><TxtInput value={d.position} onChange={v=>set('position',v)} placeholder="z.B. Stürmer"/></Field>
+        <Field label="Geburtstag" note={d.geburtstag&&gebAlter(d.geburtstag)!=null?(gebAlter(d.geburtstag)+' Jahre alt'):'optional'}>
+          <input type="date" value={d.geburtstag||''} onChange={e=>set('geburtstag',e.target.value)} max="2020-12-31" className="w-full rounded-md border border-border bg-background px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary/40"/>
+        </Field>
+        <Field label="Mannschaft">
+          <Sel value={d.team} onChange={v=>set('team',v)}>
+            <option value="regionalliga">Regionalliga</option>
+            <option value="u23">Oberliga (U23)</option>
+          </Sel>
+        </Field>
+        <Field label="Restmonate Saison" note={'Auto: '+SAISON_REST+'M ab '+(new Date().toLocaleDateString('de-DE',{month:'long',year:'numeric'}))}>
+          <NumInput value={d.durationMonths} onChange={v=>set('durationMonths',Math.max(0,Math.round(v)))} min={0} max={12}/>
+        </Field>
+        <Field label="Brutto / Monat (EUR)">
+          <NumInput value={d.bruttoMonat} onChange={v=>set('bruttoMonat',v)} min={0}/>
+        </Field>
+        <div className="space-y-2 flex flex-col justify-end pb-0.5">
+          <Chk id={'uel-'+(d.id||'new')} checked={d.hasUebungsleiter} onChange={v=>set('hasUebungsleiter',v)} label={'ÜL-Pauschale ('+fmt(UEL)+'/M)'}/>
+          <Chk id={'mj-'+(d.id||'new')} checked={d.hasMinijob} onChange={v=>set('hasMinijob',v)} label={'Minijob Sponsor (AG: '+fmt(MINIJOB)+' | Netto: '+fmt(MINIJOB_NET)+'/M)'}/>
+        </div>
+        <Field label="Fahrtkostenerstattung (EUR/M)" note="Steuerfrei – wirkt netto auf Spieler">
+          <NumInput value={d.fahrtkosten} onChange={v=>set('fahrtkosten',v)} min={0}/>
+        </Field>
+        <Field label="Miete / Monat (EUR)">
+          <NumInput value={d.rentMonthly} onChange={v=>set('rentMonthly',v)} min={0}/>
+        </Field>
+        <Field label="Mietmonate">
+          <NumInput value={d.rentMonths} onChange={v=>set('rentMonths',Math.max(0,Math.round(v)))} min={0} max={12}/>
+        </Field>
+        <Field label="Kommentar" className="sm:col-span-2">
+          <TxtInput value={d.notes} onChange={v=>set('notes',v)} placeholder="z.B. Fahrtkosten, WG, Besonderheiten..."/>
+        </Field>
+      </div>
+
+      <div className="rounded-lg bg-muted/50 p-4 text-sm">
+        <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-2">Fixkosten</p>
+        <div className="grid grid-cols-2 gap-x-6 gap-y-1">
+          <span className="text-muted-foreground">LNK (23%)</span><span className="text-right">{fmt(c.lnk)}</span>
+          <span className="text-muted-foreground">VBG</span><span className="text-right">{fmt(c.vbg)}</span>
+          <span className="text-muted-foreground">AG-Kosten/Monat</span><span className="text-right">{fmt(c.mbTotal)}</span>
+          <span className="text-muted-foreground">{'Gehalt Saison ('+d.durationMonths+'M)'}</span><span className="text-right">{fmt(c.sb)}</span>
+          {c.uelJ>0&&<><span className="text-muted-foreground">{'ÜL-Pauschale Saison ('+d.durationMonths+'M)'}</span><span className="text-right">{fmt(c.uelJ/12*Math.max(1,d.durationMonths??SAISON_REST))}</span></>}
+          {c.mjJ>0&&<>
+            <span className="text-muted-foreground">{'Minijob AG-Kosten Saison ('+d.durationMonths+'M)'}</span>
+            <span className="text-right">{fmt(c.mjJ/12*Math.max(1,d.durationMonths??SAISON_REST))}</span>
+            <span className="text-muted-foreground text-xs italic pl-2">↳ Spieler erhält netto</span>
+            <span className="text-right text-xs text-muted-foreground italic">{fmt(MINIJOB_NET*Math.max(1,d.durationMonths??SAISON_REST))}</span>
+          </>}
+          {c.fkJ>0&&<><span className="text-muted-foreground">{'Fahrtkosten Saison ('+d.durationMonths+'M)'}</span><span className="text-right">{fmt(c.fkJ/12*Math.max(1,d.durationMonths??SAISON_REST))}</span></>}
+          {ms>0&&<><span className="text-muted-foreground">{'Miete Saison ('+d.rentMonths+'M)'}</span><span className="text-right">{fmt(ms)}</span></>}
+        </div>
+        <div className="flex justify-between pt-2 mt-2 border-t border-border font-bold text-base">
+          <span>Gesamtkosten</span>
+          <span className="text-primary">{fmt(c.ges+ms)}</span>
+        </div>
+      </div>
+
+      <div className="rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm">
+        <p className="text-xs font-semibold uppercase tracking-wide text-amber-700 mb-3">Prämien</p>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <Field label="Punktprämie (€/Pkt)">
+            <NumInput value={d.praemiePunkt} onChange={v=>set('praemiePunkt',v)} min={0}/>
+          </Field>
+          <Field label="Einsatzprämie (€/Einsatz)">
+            <NumInput value={d.praemieEinsatz} onChange={v=>set('praemieEinsatz',v)} min={0}/>
+          </Field>
+          <Field label="Aufstiegsprämie (€)">
+            <NumInput value={d.praemieAufstieg} onChange={v=>set('praemieAufstieg',v)} min={0}/>
+          </Field>
+          <Field label="Landespokalprämie (€)">
+            <NumInput value={d.praemieLandespokal} onChange={v=>set('praemieLandespokal',v)} min={0}/>
+          </Field>
+        </div>
+        {hasPraemien&&(
+          <div className="mt-3 text-xs text-amber-700 space-y-0.5 border-t border-amber-200 pt-2">
+            {d.praemiePunkt>0&&<>
+              <p>Bei 60 Pkt: <strong>{fmt((d.praemiePunkt||0)*60)}</strong></p>
+              <p className="font-bold">Bei 70 Pkt (Richtwert): <strong>{fmt((d.praemiePunkt||0)*70)}</strong></p>
+              <p>Bei 80 Pkt: <strong>{fmt((d.praemiePunkt||0)*80)}</strong></p>
+            </>}
+            {d.praemieEinsatz>0&&<>
+              <p>Bei 25 Einsätzen: <strong>{fmt((d.praemieEinsatz||0)*25)}</strong> · Bei 30: <strong>{fmt((d.praemieEinsatz||0)*30)}</strong></p>
+            </>}
+            {d.praemieAufstieg>0&&<p>Aufstiegsprämie: <strong>{fmt(d.praemieAufstieg)}</strong></p>}
+            {d.praemieLandespokal>0&&<p>Landespokalprämie: <strong>{fmt(d.praemieLandespokal)}</strong></p>}
+          </div>
+        )}
+      </div>
+
+      <div className="flex justify-end gap-2 pt-2">
+        <Btn variant="outline" onClick={onClose}>Abbrechen</Btn>
+        <Btn onClick={()=>onSave({...d,id:d.id||uid()})}>{player?'Speichern':'Hinzufügen'}</Btn>
+      </div>
+    </div>
+  );
+}
+
+// ─── STAFF FORM ───────────────────────────────────────────────────────────────
+function StaffForm({member,onSave,onClose}){
+  const [d,setD]=useState({name:'',funktion:'',geburtstag:'',bruttoMonat:0,durationMonths:SAISON_REST,bonusYear:0,hasUebungsleiter:false,hasMinijob:false,...(member||{})});
+  const set=(k,v)=>setD(p=>({...p,[k]:v}));
+  const c=useMemo(()=>calcS(d),[d]);
+  return(
+    <div className="space-y-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <Field label="Name"><TxtInput value={d.name} onChange={v=>set('name',v)} placeholder="Vorname Nachname"/></Field>
+        <Field label="Funktion"><TxtInput value={d.funktion} onChange={v=>set('funktion',v)} placeholder="z.B. Trainer, Physio..."/></Field>
+        <Field label="Geburtstag" note={d.geburtstag&&gebAlter(d.geburtstag)!=null?(gebAlter(d.geburtstag)+' Jahre alt'):'optional'}>
+          <input type="date" value={d.geburtstag||''} onChange={e=>set('geburtstag',e.target.value)} max="2010-12-31" className="w-full rounded-md border border-border bg-background px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary/40"/>
+        </Field>
+        <Field label="Brutto / Monat (EUR)"><NumInput value={d.bruttoMonat} onChange={v=>set('bruttoMonat',v)} min={0}/></Field>
+        <Field label="Vertragsdauer (Monate)"><NumInput value={d.durationMonths} onChange={v=>set('durationMonths',Math.max(1,Math.round(v)))} min={1} max={12}/></Field>
+        <Field label="Jahresbonus (EUR)" note="Fixer Bonus - in Kostenrechnung enthalten"><NumInput value={d.bonusYear} onChange={v=>set('bonusYear',v)} min={0}/></Field>
+        <div className="space-y-2 flex flex-col justify-end pb-0.5">
+          <Chk id={'s-uel-'+(d.id||'new')} checked={d.hasUebungsleiter} onChange={v=>set('hasUebungsleiter',v)} label={'ÜL-Pauschale ('+fmt(UEL)+'/M)'}/>
+          <Chk id={'s-mj-'+(d.id||'new')} checked={d.hasMinijob} onChange={v=>set('hasMinijob',v)} label={'Minijob Sponsor (AG: '+fmt(MINIJOB)+' | Netto: '+fmt(MINIJOB_NET)+'/M)'}/>
+        </div>
+      </div>
+      <div className="rounded-lg bg-muted/50 p-4 text-sm">
+        <div className="grid grid-cols-2 gap-x-6 gap-y-1">
+          <span className="text-muted-foreground">LNK (23%)</span><span className="text-right">{fmt(c.lnk)}</span>
+          <span className="text-muted-foreground">VBG (Gewerbe)</span><span className="text-right">{fmt(c.vbg)}</span>
+          <span className="text-muted-foreground">AG-Kosten/Monat</span><span className="text-right">{fmt(c.mbTotal)}</span>
+        </div>
+        <div className="flex justify-between pt-2 mt-2 border-t border-border font-bold text-base">
+          <span>Gesamtkosten Saison</span><span className="text-primary">{fmt(c.ges)}</span>
+        </div>
+      </div>
+      <div className="flex justify-end gap-2 pt-2">
+        <Btn variant="outline" onClick={onClose}>Abbrechen</Btn>
+        <Btn onClick={()=>onSave({...d,id:d.id||uid()})}>{member?'Speichern':'Hinzufügen'}</Btn>
+      </div>
+    </div>
+  );
+}
+
+// ─── COST FORM ────────────────────────────────────────────────────────────────
+function CostForm({cost,totalGames,onSave,onClose}){
+  const [d,setD]=useState({category:'Sonstiges',subcategory:'',description:'',team:'both',amount:0,quantity:1,frequency:'yearly',month:0,...(cost||{})});
+  const set=(k,v)=>setD(p=>({...p,[k]:v}));
+  const annual=useMemo(()=>costYr(d,totalGames),[d,totalGames]);
+  const subcats=COST_SUBCATS[d.category]||[];
+  return(
+    <div className="space-y-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <Field label="Kategorie">
+          <Sel value={d.category} onChange={v=>setD(p=>({...p,category:v,subcategory:''}))}>
+            {COST_CATS.map(c=><option key={c} value={c}>{c}</option>)}
+          </Sel>
+        </Field>
+        <Field label="Unterkategorie">
+          {subcats.length>0
+            ?<Sel value={d.subcategory} onChange={v=>set('subcategory',v)}><option value="">- keine -</option>{subcats.map(s=><option key={s} value={s}>{s}</option>)}</Sel>
+            :<TxtInput value={d.subcategory} onChange={v=>set('subcategory',v)} placeholder="Freitext..."/>
+          }
+        </Field>
+        <Field label="Beschreibung" className="sm:col-span-2"><TxtInput value={d.description} onChange={v=>set('description',v)} placeholder="z.B. Busfahrten Auswärtsspiele"/></Field>
+        <Field label="Zuordnung">
+          <Sel value={d.team} onChange={v=>set('team',v)}>
+            <option value="both">Beide Mannschaften</option>
+            <option value="regionalliga">Regionalliga</option>
+            <option value="u23">Oberliga (U23)</option>
+          </Sel>
+        </Field>
+        <Field label="Häufigkeit">
+          <Sel value={d.frequency} onChange={v=>set('frequency',v)}>
+            {Object.entries(FREQ).map(([k,v])=><option key={k} value={k}>{v}</option>)}
+          </Sel>
+        </Field>
+        <Field label="Betrag (EUR)"><NumInput value={d.amount} onChange={v=>set('amount',v)} min={0}/></Field>
+        <Field label="Anzahl" note={d.frequency==='per_game'?('x '+totalGames+' Spiele = '+fmt(d.amount*(d.quantity||1)*totalGames)):d.frequency==='monthly'?('x 12 = '+fmt(d.amount*(d.quantity||1)*12)+'/Jahr'):''}>
+          <NumInput value={d.quantity} onChange={v=>set('quantity',Math.max(1,Math.round(v)))} min={1}/>
+        </Field>
+        {d.frequency==='once'&&<Field label="Monat" className="sm:col-span-2">
+          <Sel value={d.month} onChange={v=>set('month',+v)}>
+            {MONTHS.map((m,i)=><option key={i} value={i}>{m}</option>)}
+          </Sel>
+        </Field>}
+      </div>
+      <div className="rounded-lg bg-muted/50 p-3 flex justify-between items-center">
+        <span className="text-sm text-muted-foreground">Jahresbetrag</span>
+        <span className="font-bold text-primary">{fmt(annual)}</span>
+      </div>
+      <div className="flex justify-end gap-2 pt-2">
+        <Btn variant="outline" onClick={onClose}>Abbrechen</Btn>
+        <Btn onClick={()=>onSave({...d,id:d.id||uid()})}>{cost?'Speichern':'Hinzufügen'}</Btn>
+      </div>
+    </div>
+  );
+}
+
+// ─── INCOME FORM ──────────────────────────────────────────────────────────────
+function IncomeForm({item,onSave,onClose}){
+  const [d,setD]=useState({category:'Sponsoring',description:'',amount:0,quantity:1,frequency:'yearly',month:0,...(item||{})});
+  const set=(k,v)=>setD(p=>({...p,[k]:v}));
+  const annual=useMemo(()=>incYr(d),[d]);
+  return(
+    <div className="space-y-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <Field label="Kategorie">
+          <Sel value={d.category} onChange={v=>set('category',v)}>
+            {INCOME_CATS.map(c=><option key={c} value={c}>{c}</option>)}
+          </Sel>
+        </Field>
+        <Field label="Häufigkeit">
+          <Sel value={d.frequency} onChange={v=>set('frequency',v)}>
+            <option value="monthly">Monatlich</option>
+            <option value="yearly">Jährlich</option>
+            <option value="once">Einmalig</option>
+          </Sel>
+        </Field>
+        <Field label="Beschreibung" className="sm:col-span-2"><TxtInput value={d.description} onChange={v=>set('description',v)} placeholder="z.B. Hauptsponsor 2026/27"/></Field>
+        <Field label="Betrag (EUR)"><NumInput value={d.amount} onChange={v=>set('amount',v)} min={0}/></Field>
+        <Field label="Anzahl"><NumInput value={d.quantity} onChange={v=>set('quantity',Math.max(1,Math.round(v)))} min={1}/></Field>
+        {d.frequency==='once'&&<Field label="Monat" className="sm:col-span-2">
+          <Sel value={d.month} onChange={v=>set('month',+v)}>
+            {MONTHS.map((m,i)=><option key={i} value={i}>{m}</option>)}
+          </Sel>
+        </Field>}
+      </div>
+      <div className="rounded-lg bg-muted/50 p-3 flex justify-between items-center">
+        <span className="text-sm text-muted-foreground">Jahresbetrag</span>
+        <span className="font-bold text-emerald-600">{fmt(annual)}</span>
+      </div>
+      <div className="flex justify-end gap-2 pt-2">
+        <Btn variant="outline" onClick={onClose}>Abbrechen</Btn>
+        <Btn variant="success" onClick={()=>onSave({...d,id:d.id||uid()})}>{item?'Speichern':'Hinzufügen'}</Btn>
+      </div>
+    </div>
+  );
+}
+
+// ─── KADER PAGE ───────────────────────────────────────────────────────────────
+function KaderPage({players,onChange}){
+  const [tab,setTab]=useState('regionalliga');
+  const [modal,setModal]=useState(false);
+  const [editing,setEditing]=useState(null);
+  const isTeamTab=tab==='regionalliga'||tab==='u23';
+  const list=useMemo(()=>{
+    if(tab==='minijob') return (players||[]).filter(p=>p.hasMinijob);
+    if(tab==='uebungsleiter') return (players||[]).filter(p=>p.hasUebungsleiter);
+    return (players||[]).filter(p=>p.team===tab);
+  },[players,tab]);
+  const tots=useMemo(()=>list.reduce((a,p)=>{const c=calcP(p);const ms=(p.rentMonthly||0)*(p.rentMonths||0);return{bj:a.bj+c.bj,sb:a.sb+c.sb,ges:a.ges+c.ges+ms};},{bj:0,sb:0,ges:0}),[list]);
+  const save=p=>{onChange(editing?players.map(x=>x.id===p.id?p:x):[...players,p]);setModal(false);setEditing(null);};
+  const csv=()=>{
+    const rows=[['Name','Position','Brutto/M','Brutto/J','LNK','VBG','Saison','Miete','Gesamt','Kommentar','Punktprämie/Pkt','Einsatzprämie/Einsatz','Aufstiegsprämie','Landespokalprämie']];
+    list.forEach(p=>{const c=calcP(p);const ms=(p.rentMonthly||0)*(p.rentMonths||0);rows.push([p.name,p.position,p.bruttoMonat,Math.round(c.bj),Math.round(c.lnk),Math.round(c.vbg),Math.round(c.sb),Math.round(ms),Math.round(c.ges+ms),p.notes||'',p.praemiePunkt||0,p.praemieEinsatz||0,p.praemieAufstieg||0,p.praemieLandespokal||0]);});
+    const a=document.createElement('a');a.href='data:text/csv;charset=utf-8,\uFEFF'+encodeURIComponent(rows.map(r=>r.join(';')).join('\n'));a.download='kader-'+tab+'.csv';a.click();
+  };
+  const mjTotal=(players||[]).filter(p=>p.hasMinijob).length;
+  const uelTotal=(players||[]).filter(p=>p.hasUebungsleiter).length;
+  const TABS=[
+    {id:'regionalliga',label:TEAM_LBL['regionalliga'],count:(players||[]).filter(p=>p.team==='regionalliga').length},
+    {id:'u23',label:TEAM_LBL['u23'],count:(players||[]).filter(p=>p.team==='u23').length},
+    {id:'minijob',label:'💼 Minijob',count:mjTotal},
+    {id:'uebungsleiter',label:'📋 ÜL-Pauschale',count:uelTotal},
+  ];
+  return(
+    <div className="p-4 md:p-6 space-y-5">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div><h1 className="text-xl font-bold">Kader</h1><p className="text-sm text-muted-foreground">{list.length} Spieler &middot; {fmt(tots.ges)} Fixkosten</p></div>
+        <div className="flex gap-2">
+          <Btn variant="outline" onClick={csv}>CSV</Btn>
+          {isTeamTab&&<Btn onClick={()=>{setEditing(null);setModal(true);}}>+ Spieler hinzufügen</Btn>}
+        </div>
+      </div>
+      <div className="flex gap-1 border-b border-border overflow-x-auto">
+        {TABS.map(t=>(
+          <button key={t.id} onClick={()=>setTab(t.id)} className={cx('px-4 py-2 text-sm font-medium border-b-2 transition-colors cursor-pointer whitespace-nowrap',tab===t.id?'border-primary text-primary':'border-transparent text-muted-foreground hover:text-foreground')}>
+            {t.label} ({t.count})
+          </button>
+        ))}
+      </div>
+      {(tab==='minijob'||tab==='uebungsleiter')?(
+        <Card>
+          {list.length===0
+            ?<Empty msg={tab==='minijob'?'Kein Spieler hat einen Minijob.':'Kein Spieler hat eine ÜL-Pauschale.'}/>
+            :<div className="overflow-x-auto"><table className="w-full text-sm">
+              <thead><tr className="border-b border-border text-xs text-muted-foreground uppercase tracking-wide text-left">
+                <th className="px-4 py-3">Name</th>
+                <th className="px-4 py-3">Position</th>
+                <th className="px-4 py-3">Team</th>
+                <th className="px-4 py-3 text-right">Brutto/M</th>
+                {tab==='minijob'&&<><th className="px-4 py-3 text-right">AG-Kosten/M</th><th className="px-4 py-3 text-right">Netto Spieler/M</th></>}
+                {tab==='uebungsleiter'&&<th className="px-4 py-3 text-right">ÜL-Pauschale/M</th>}
+              </tr></thead>
+              <tbody>
+                {list.map(p=>(
+                  <tr key={p.id} className="border-b border-border/50 hover:bg-muted/30 transition-colors">
+                    <td className="px-4 py-2.5 font-medium">{p.name||'-'}</td>
+                    <td className="px-4 py-2.5 text-muted-foreground">{p.position||'-'}</td>
+                    <td className="px-4 py-2.5"><Badge>{TEAM_LBL[p.team]||p.team}</Badge></td>
+                    <td className="px-4 py-2.5 text-right">{fmt(p.bruttoMonat)}</td>
+                    {tab==='minijob'&&<>
+                      <td className="px-4 py-2.5 text-right font-semibold text-primary">{fmt(MINIJOB)}</td>
+                      <td className="px-4 py-2.5 text-right text-muted-foreground">{fmt(MINIJOB_NET)}</td>
+                    </>}
+                    {tab==='uebungsleiter'&&<td className="px-4 py-2.5 text-right font-semibold text-primary">{fmt(UEL)}</td>}
+                  </tr>
+                ))}
+              </tbody>
+              <tfoot><tr className="bg-muted/40 font-semibold text-sm border-t-2 border-border">
+                <td className="px-4 py-2" colSpan="3">Gesamt ({list.length})</td>
+                <td className="px-4 py-2 text-right">{fmt(list.reduce((s,p)=>s+(p.bruttoMonat||0),0))}</td>
+                {tab==='minijob'&&<>
+                  <td className="px-4 py-2 text-right text-primary">{fmt(list.length*MINIJOB)}</td>
+                  <td className="px-4 py-2 text-right text-muted-foreground">{fmt(list.length*MINIJOB_NET)}</td>
+                </>}
+                {tab==='uebungsleiter'&&<td className="px-4 py-2 text-right text-primary">{fmt(list.length*UEL)}</td>}
+              </tr></tfoot>
+            </table></div>
+          }
+        </Card>
+      ):(
+      <Card>
+        {list.length===0
+          ?<Empty msg="Noch keine Spieler in dieser Mannschaft." action={<Btn onClick={()=>{setEditing(null);setModal(true);}}>+ Spieler hinzufügen</Btn>}/>
+          :<div className="overflow-x-auto"><table className="w-full text-sm">
+            <thead><tr className="border-b border-border text-xs text-muted-foreground uppercase tracking-wide text-left">
+              <th className="px-4 py-3 w-8"></th>
+              <th className="px-4 py-3">Name</th><th className="px-4 py-3">Position</th>
+              <th className="px-4 py-3 text-right">Brutto/M</th>
+              <th className="px-4 py-3 text-right text-violet-600" title="Brutto-Äquivalent: reguläres Brutto + steuerfreie Vorteile (ÜL, Minijob, Wohnung) hochgerechnet auf ~35% Abgaben">Paket-Äq.†</th>
+              <th className="px-4 py-3 text-right">AG/M</th>
+              <th className="px-4 py-3 text-right">Saison</th><th className="px-4 py-3 text-right">Miete</th>
+              <th className="px-4 py-3 text-right font-semibold">Gesamt</th>
+              <th className="px-4 py-3 text-right">Prämien</th>
+              <th className="px-4 py-3">Kommentar</th>
+              <th className="px-4 py-3"></th>
+            </tr></thead>
+            <tbody>
+              {list.map((p,pi)=>{
+                const c=calcP(p);
+                const ms=(p.rentMonthly||0)*(p.rentMonths||0);
+                const pot=(p.praemiePunkt||0)*70+(p.praemieEinsatz||0)*28+(p.praemieAufstieg||0)+(p.praemieLandespokal||0);
+                return(
+                  <tr key={p.id} className="border-b border-border/50 hover:bg-muted/30 transition-colors">
+                    <td className="px-4 py-1.5 w-8"><MoveBtn items={list} index={pi} allItems={players} onChange={onChange}/></td>
+                    <td className="px-4 py-2.5 font-medium">{p.name||'-'}</td>
+                    <td className="px-4 py-2.5 text-muted-foreground">{p.position||'-'}</td>
+                    <td className="px-4 py-2.5 text-right">{fmt(p.bruttoMonat)}</td>
+                    <td className="px-4 py-2.5 text-right text-violet-600 font-medium">{fmt((p.bruttoMonat||0)+((p.hasUebungsleiter?UEL:0)+(p.hasMinijob?MINIJOB_NET:0)+(p.fahrtkosten||0)+(p.rentMonthly||0))*GROSS_UP)}</td>
+                    <td className="px-4 py-2.5 text-right text-muted-foreground">{fmt(c.mbTotal)}</td>
+                    <td className="px-4 py-2.5 text-right">{fmt(c.sb)}</td>
+                    <td className="px-4 py-2.5 text-right text-muted-foreground">{ms>0?fmt(ms):'-'}</td>
+                    <td className="px-4 py-2.5 text-right font-semibold text-primary">{fmt(c.ges+ms)}</td>
+                    <td className="px-4 py-2.5 text-right text-amber-600 text-xs italic">{pot>0?('ca. '+fmt(pot)):'-'}</td>
+                    <td className="px-4 py-2.5 text-muted-foreground text-xs max-w-36">
+                      {p.notes?<span title={p.notes} className="block truncate">{p.notes}</span>:'-'}
+                    </td>
+                    <td className="px-4 py-2.5">
+                      <div className="flex justify-end items-center gap-0.5">
+                        <button onClick={()=>{setEditing(p);setModal(true);}} className="hover:text-primary cursor-pointer p-1 rounded transition-colors">✎</button>
+                        <DelBtn onDelete={()=>onChange(players.filter(x=>x.id!==p.id))}/>
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+            <tfoot><tr className="bg-muted/40 font-semibold text-sm border-t-2 border-border">
+              <td className="px-4 py-2" colSpan="3">Gesamt ({list.length})</td>
+              <td className="px-4 py-2 text-right">{fmt(tots.bj/12)}</td>
+              <td></td>
+              <td></td>
+              <td className="px-4 py-2 text-right">{fmt(tots.sb)}</td>
+              <td></td>
+              <td className="px-4 py-2 text-right text-primary">{fmt(tots.ges)}</td>
+              <td colSpan="3"></td>
+            </tr></tfoot>
+          </table></div>
+        }
+      </Card>
+      )}
+      {isTeamTab&&<p className="text-xs text-muted-foreground">† Paket-Äquivalent: reguläres Brutto + steuerfreie Vorteile (ÜL-Pauschale, Minijob-Netto, Wohnung) umgerechnet auf ca. Brutto bei ~35% Abgaben. Orientierungswert.</p>}
+      {isTeamTab&&<Modal open={modal} onClose={()=>{setModal(false);setEditing(null);}} title={editing?'Spieler bearbeiten':'Neuer Spieler'} wide>
+        <PlayerForm player={editing} team={tab} onSave={save} onClose={()=>{setModal(false);setEditing(null);}}/>
+      </Modal>}
+    </div>
+  );
+}
+
+// ─── STAFF PAGE ───────────────────────────────────────────────────────────────
+function StaffPage({staff,onChange}){
+  const [modal,setModal]=useState(false);
+  const [editing,setEditing]=useState(null);
+  const total=useMemo(()=>(staff||[]).reduce((s,m)=>s+calcS(m).ges,0),[staff]);
+  const save=s=>{onChange(editing?staff.map(x=>x.id===s.id?s:x):[...staff,s]);setModal(false);setEditing(null);};
+  const csv=()=>{const rows=[['Name','Funktion','Brutto/M','LNK','VBG','Boni/J','Saison']];(staff||[]).forEach(s=>{const c=calcS(s);rows.push([s.name,s.funktion,s.bruttoMonat,Math.round(c.lnk),Math.round(c.vbg),s.bonusYear||0,Math.round(c.sb)]);});const a=document.createElement('a');a.href='data:text/csv;charset=utf-8,\uFEFF'+encodeURIComponent(rows.map(r=>r.join(';')).join('\n'));a.download='staff.csv';a.click();};
+  return(
+    <div className="p-4 md:p-6 space-y-5">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div><h1 className="text-xl font-bold">Staff</h1><p className="text-sm text-muted-foreground">{(staff||[]).length} Mitarbeiter &middot; {fmt(total)}</p></div>
+        <div className="flex gap-2"><Btn variant="outline" onClick={csv}>CSV</Btn><Btn onClick={()=>{setEditing(null);setModal(true);}}>+ Mitarbeiter hinzufügen</Btn></div>
+      </div>
+      <Card>
+        {!(staff||[]).length
+          ?<Empty msg="Noch keine Mitarbeiter angelegt." action={<Btn onClick={()=>{setEditing(null);setModal(true);}}>+ Mitarbeiter hinzufügen</Btn>}/>
+          :<div className="overflow-x-auto"><table className="w-full text-sm">
+            <thead><tr className="border-b border-border text-xs text-muted-foreground uppercase tracking-wide text-left">
+              <th className="px-4 py-3 w-8"></th>
+              <th className="px-4 py-3">Name</th><th className="px-4 py-3">Funktion</th>
+              <th className="px-4 py-3 text-right">Brutto/M</th>
+              <th className="px-4 py-3 text-right text-violet-600" title="Brutto-Äquivalent: reguläres Brutto + steuerfreie Vorteile (ÜL, Minijob) hochgerechnet auf ~35% Abgaben">Paket-Äq.†</th>
+              <th className="px-4 py-3 text-right">LNK+VBG/J</th>
+              <th className="px-4 py-3 text-right">Boni/J</th><th className="px-4 py-3 text-right">Monate</th>
+              <th className="px-4 py-3 text-right font-semibold">Saison</th><th className="px-4 py-3"></th>
+            </tr></thead>
+            <tbody>{(staff||[]).map((s,si)=>{const c=calcS(s);return(
+              <tr key={s.id} className="border-b border-border/50 hover:bg-muted/30 transition-colors">
+                <td className="px-4 py-1.5 w-8"><MoveBtn items={staff} index={si} allItems={staff} onChange={onChange}/></td>
+                <td className="px-4 py-2.5 font-medium">{s.name||'-'}</td>
+                <td className="px-4 py-2.5 text-muted-foreground">{s.funktion||'-'}</td>
+                <td className="px-4 py-2.5 text-right">{fmt(s.bruttoMonat)}</td>
+                <td className="px-4 py-2.5 text-right text-violet-600 font-medium">{fmt((s.bruttoMonat||0)+(s.bonusYear||0)/12+((s.hasUebungsleiter?UEL:0)+(s.hasMinijob?MINIJOB_NET:0))*GROSS_UP)}</td>
+                <td className="px-4 py-2.5 text-right text-muted-foreground">{fmt(c.lnk+c.vbg)}</td>
+                <td className="px-4 py-2.5 text-right text-muted-foreground">{fmt(s.bonusYear||0)}</td>
+                <td className="px-4 py-2.5 text-right text-muted-foreground">{(s.durationMonths??SAISON_REST)}M</td>
+                <td className="px-4 py-2.5 text-right font-semibold text-primary">{fmt(c.ges)}</td>
+                <td className="px-4 py-2.5">
+                  <div className="flex justify-end items-center gap-0.5">
+                    <button onClick={()=>{setEditing(s);setModal(true);}} className="hover:text-primary cursor-pointer p-1 rounded transition-colors">✎</button>
+                    <DelBtn onDelete={()=>onChange(staff.filter(x=>x.id!==s.id))}/>
+                  </div>
+                </td>
+              </tr>
+            );})}</tbody>
+            <tfoot><tr className="bg-muted/40 font-semibold text-sm border-t-2 border-border"><td className="px-4 py-2" colSpan="6">Gesamt</td><td className="px-4 py-2 text-right text-primary">{fmt(total)}</td><td></td></tr></tfoot>
+          </table></div>
+        }
+      </Card>
+      <Modal open={modal} onClose={()=>{setModal(false);setEditing(null);}} title={editing?'Mitarbeiter bearbeiten':'Neuer Mitarbeiter'} wide>
+        <StaffForm member={editing} onSave={save} onClose={()=>{setModal(false);setEditing(null);}}/>
+      </Modal>
+    </div>
+  );
+}
+
+// ─── KOSTEN PAGE ──────────────────────────────────────────────────────────────
+function KostenPage({costs,spielplan,onChange}){
+  const [modal,setModal]=useState(false);
+  const [editing,setEditing]=useState(null);
+  const [fCat,setFCat]=useState('Alle');
+  const [fTeam,setFTeam]=useState('all');
+  const totalGames=useMemo(()=>spielplan.reduce((a,b)=>a+b,0),[spielplan]);
+  const save=c=>{onChange(editing?costs.map(x=>x.id===c.id?c:x):[...costs,c]);setModal(false);setEditing(null);};
+  const filtered=useMemo(()=>(costs||[]).filter(c=>{if(fCat!=='Alle'&&c.category!==fCat)return false;if(fTeam!=='all'&&c.team!==fTeam&&c.team!=='both')return false;return true;}),[costs,fCat,fTeam]);
+  const total=useMemo(()=>filtered.reduce((s,c)=>s+costYr(c,totalGames),0),[filtered,totalGames]);
+  const grouped=useMemo(()=>{
+    const g={};
+    filtered.forEach(c=>{const key=c.subcategory?(c.category+' > '+c.subcategory):c.category;if(!g[key])g[key]={label:key,items:[],total:0};g[key].items.push(c);g[key].total+=costYr(c,totalGames);});
+    return Object.values(g).sort((a,b)=>a.label.localeCompare(b.label));
+  },[filtered,totalGames]);
+  return(
+    <div className="p-4 md:p-6 space-y-5">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div><h1 className="text-xl font-bold">Kostenstellen</h1><p className="text-sm text-muted-foreground">{filtered.length} Einträge &middot; {fmt(total)} p.a. &middot; {totalGames} Spiele/Sais.</p></div>
+        <Btn onClick={()=>{setEditing(null);setModal(true);}}>+ Kostenstelle hinzufügen</Btn>
+      </div>
+      <div className="flex gap-3 flex-wrap">
+        <Sel value={fTeam} onChange={setFTeam} className="w-48">
+          <option value="all">Alle Mannschaften</option><option value="regionalliga">Nur Regionalliga</option><option value="u23">Nur Oberliga (U23)</option>
+        </Sel>
+        <Sel value={fCat} onChange={setFCat} className="w-48">
+          <option value="Alle">Alle Kategorien</option>
+          {COST_CATS.map(c=><option key={c} value={c}>{c}</option>)}
+        </Sel>
+      </div>
+      {grouped.length===0
+        ?<Card><Empty msg="Keine Kostenstellen gefunden." action={<Btn onClick={()=>{setEditing(null);setModal(true);}}>+ Kostenstelle hinzufügen</Btn>}/></Card>
+        :grouped.map(g=>(
+          <Card key={g.label}>
+            <div className="flex items-center justify-between px-5 py-3 border-b border-border">
+              <div className="flex items-center gap-2"><span className="font-semibold text-sm">{g.label}</span><Badge>{g.items.length}</Badge></div>
+              <span className="text-sm font-bold">{fmt(g.total)}<span className="text-muted-foreground font-normal text-xs ml-1">/ Jahr</span></span>
+            </div>
+            <div className="overflow-x-auto"><table className="w-full text-sm">
+              <thead><tr className="text-xs text-muted-foreground uppercase tracking-wide border-b border-border/50">
+                <th className="px-5 py-2 w-8"></th>
+                <th className="px-5 py-2 text-left">Beschreibung</th><th className="px-5 py-2 text-left">Zuordnung</th>
+                <th className="px-5 py-2 text-right">Betrag</th><th className="px-5 py-2 text-right">Anz.</th>
+                <th className="px-5 py-2 text-right">Häufigkeit</th><th className="px-5 py-2 text-right font-semibold">Jahresbetrag</th>
+                <th className="px-5 py-2"></th>
+              </tr></thead>
+              <tbody>{g.items.map((c,ci)=>(
+                <tr key={c.id} className="border-b border-border/30 hover:bg-muted/20 transition-colors">
+                  <td className="px-5 py-1 w-8"><MoveBtn items={g.items} index={ci} allItems={costs} onChange={onChange}/></td>
+                  <td className="px-5 py-2">{c.description||'-'}</td>
+                  <td className="px-5 py-2"><Badge>{TEAM_LBL[c.team]||c.team}</Badge></td>
+                  <td className="px-5 py-2 text-right">{fmt(c.amount)}</td>
+                  <td className="px-5 py-2 text-right text-muted-foreground">{c.quantity||1}</td>
+                  <td className="px-5 py-2 text-right"><Badge>{FREQ[c.frequency]||c.frequency}</Badge></td>
+                  <td className="px-5 py-2 text-right font-medium">{fmt(costYr(c,totalGames))}</td>
+                  <td className="px-5 py-2">
+                    <div className="flex justify-end items-center gap-0.5">
+                      <button onClick={()=>{setEditing(c);setModal(true);}} className="hover:text-primary cursor-pointer p-1 rounded transition-colors">✎</button>
+                      <DelBtn onDelete={()=>onChange(costs.filter(x=>x.id!==c.id))}/>
+                    </div>
+                  </td>
+                </tr>
+              ))}</tbody>
+            </table></div>
+          </Card>
+        ))
+      }
+      <Modal open={modal} onClose={()=>{setModal(false);setEditing(null);}} title={editing?'Kostenstelle bearbeiten':'Neue Kostenstelle'} wide>
+        <CostForm cost={editing} totalGames={totalGames} onSave={save} onClose={()=>{setModal(false);setEditing(null);}}/>
+      </Modal>
+    </div>
+  );
+}
+
+// ─── EINNAHMEN PAGE ───────────────────────────────────────────────────────────
+function EinnahmenPage({income,onChange}){
+  const [modal,setModal]=useState(false);
+  const [editing,setEditing]=useState(null);
+  const total=useMemo(()=>(income||[]).reduce((s,i)=>s+incYr(i),0),[income]);
+  const save=i=>{onChange(editing?income.map(x=>x.id===i.id?i:x):[...income,i]);setModal(false);setEditing(null);};
+  const grouped=useMemo(()=>{const g={};(income||[]).forEach(i=>{if(!g[i.category])g[i.category]={label:i.category,items:[],total:0};g[i.category].items.push(i);g[i.category].total+=incYr(i);});return Object.values(g).sort((a,b)=>b.total-a.total);},[income]);
+  const csv=()=>{const rows=[['Kategorie','Beschreibung','Betrag','Anzahl','Häufigkeit','Jahresbetrag']];(income||[]).forEach(i=>rows.push([i.category,i.description,i.amount,i.quantity||1,FREQ[i.frequency]||i.frequency,Math.round(incYr(i))]));const a=document.createElement('a');a.href='data:text/csv;charset=utf-8,\uFEFF'+encodeURIComponent(rows.map(r=>r.join(';')).join('\n'));a.download='einnahmen.csv';a.click();};
+  return(
+    <div className="p-4 md:p-6 space-y-5">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div><h1 className="text-xl font-bold">Einnahmen</h1><p className="text-sm text-muted-foreground">{(income||[]).length} Positionen &middot; {fmt(total)} p.a.</p></div>
+        <div className="flex gap-2"><Btn variant="outline" onClick={csv}>CSV</Btn><Btn variant="success" onClick={()=>{setEditing(null);setModal(true);}}>+ Einnahme hinzufügen</Btn></div>
+      </div>
+      {!(income||[]).length
+        ?<Card><Empty msg="Noch keine Einnahmen erfasst." action={<Btn variant="success" onClick={()=>{setEditing(null);setModal(true);}}>+ Einnahme hinzufügen</Btn>}/></Card>
+        :grouped.map(g=>(
+          <Card key={g.label}>
+            <div className="flex items-center justify-between px-5 py-3 border-b border-border">
+              <div className="flex items-center gap-2"><span className="font-semibold text-sm">{g.label}</span><Badge color="green">{g.items.length}</Badge></div>
+              <span className="text-sm font-bold text-emerald-600">{fmt(g.total)}<span className="text-muted-foreground font-normal text-xs ml-1">/ Jahr</span></span>
+            </div>
+            <div className="overflow-x-auto"><table className="w-full text-sm">
+              <thead><tr className="text-xs text-muted-foreground uppercase tracking-wide border-b border-border/50">
+                <th className="px-5 py-2 w-8"></th>
+                <th className="px-5 py-2 text-left">Beschreibung</th><th className="px-5 py-2 text-right">Betrag</th>
+                <th className="px-5 py-2 text-right">Anz.</th><th className="px-5 py-2 text-right">Häufigkeit</th>
+                <th className="px-5 py-2 text-right font-semibold">Jahresbetrag</th><th className="px-5 py-2"></th>
+              </tr></thead>
+              <tbody>{g.items.map((i,ii)=>(
+                <tr key={i.id} className="border-b border-border/30 hover:bg-muted/20 transition-colors">
+                  <td className="px-5 py-1 w-8"><MoveBtn items={g.items} index={ii} allItems={income} onChange={onChange}/></td>
+                  <td className="px-5 py-2">{i.description||'-'}</td>
+                  <td className="px-5 py-2 text-right">{fmt(i.amount)}</td>
+                  <td className="px-5 py-2 text-right text-muted-foreground">{i.quantity||1}</td>
+                  <td className="px-5 py-2 text-right"><Badge color="green">{FREQ[i.frequency]||i.frequency}</Badge></td>
+                  <td className="px-5 py-2 text-right font-medium text-emerald-600">{fmt(incYr(i))}</td>
+                  <td className="px-5 py-2">
+                    <div className="flex justify-end items-center gap-0.5">
+                      <button onClick={()=>{setEditing(i);setModal(true);}} className="hover:text-primary cursor-pointer p-1 rounded transition-colors">✎</button>
+                      <DelBtn onDelete={()=>onChange(income.filter(x=>x.id!==i.id))}/>
+                    </div>
+                  </td>
+                </tr>
+              ))}</tbody>
+            </table></div>
+          </Card>
+        ))
+      }
+      <Modal open={modal} onClose={()=>{setModal(false);setEditing(null);}} title={editing?'Einnahme bearbeiten':'Neue Einnahme'} wide>
+        <IncomeForm item={editing} onSave={save} onClose={()=>{setModal(false);setEditing(null);}}/>
+      </Modal>
+    </div>
+  );
+}
+
+// ─── LIQUIDITÄT PAGE ──────────────────────────────────────────────────────────
+function LiquiditaetPage({players,staff,costs,income,spielplan,setSpielplan}){
+  const chartRef=useRef(null);
+  const chartInst=useRef(null);
+
+  const monthly=useMemo(()=>MONTHS.map((label,m)=>{
+    const g=spielplan[m]||0;
+    const playerCost=(players||[]).reduce((sum,p)=>{
+      const c=calcP(p);
+      let cost=0;
+      if(m<(p.durationMonths??SAISON_REST)) cost+=c.mb+(c.uelJ+c.mjJ+c.fkJ)/12;
+      if(m<(p.rentMonths||0)) cost+=(p.rentMonthly||0);
+      return sum+cost;
+    },0);
+    const staffCost=(staff||[]).reduce((sum,s)=>m<(s.durationMonths??SAISON_REST)?sum+calcS(s).mbTotal:sum,0);
+    const costTotal=(costs||[]).reduce((sum,c)=>sum+costMo(c,m,g),0);
+    const incTotal=(income||[]).reduce((sum,i)=>sum+incMo(i,m),0);
+    const totalOut=playerCost+staffCost+costTotal;
+    return{label,incTotal,totalOut,playerCost,staffCost,costTotal,games:g,net:incTotal-totalOut};
+  }),[players,staff,costs,income,spielplan]);
+
+  const cumul=useMemo(()=>{let a=0;return monthly.map(m=>{a+=m.net;return a;});},[monthly]);
+  const totInc=monthly.reduce((s,m)=>s+m.incTotal,0);
+  const totOut=monthly.reduce((s,m)=>s+m.totalOut,0);
+
+  useEffect(()=>{
+    if(!chartRef.current||typeof Chart==='undefined')return;
+    const isDark=document.documentElement.classList.contains('dark');
+    const gc=isDark?'rgba(255,255,255,0.07)':'rgba(0,0,0,0.07)';
+    const tc=isDark?'#9ca3af':'#6b7280';
+    if(chartInst.current){chartInst.current.destroy();chartInst.current=null;}
+    chartInst.current=new Chart(chartRef.current,{
+      data:{labels:MONTHS,datasets:[
+        {type:'bar',label:'Einnahmen',data:monthly.map(m=>m.incTotal),backgroundColor:'rgba(16,185,129,0.7)',borderColor:'rgb(16,185,129)',borderWidth:1,order:2},
+        {type:'bar',label:'Ausgaben',data:monthly.map(m=>m.totalOut),backgroundColor:'rgba(220,38,38,0.6)',borderColor:'rgb(220,38,38)',borderWidth:1,order:2},
+        {type:'line',label:'Kumulativ',data:cumul,borderColor:'rgb(234,179,8)',backgroundColor:'rgba(234,179,8,0.1)',borderWidth:2,pointRadius:4,fill:true,tension:0.3,yAxisID:'y2',order:1},
+      ]},
+      options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{labels:{color:tc,font:{size:12}}}},scales:{
+        x:{grid:{color:gc},ticks:{color:tc}},
+        y:{grid:{color:gc},ticks:{color:tc,callback:v=>fmt(v)},title:{display:true,text:'Monatlich',color:tc}},
+        y2:{position:'right',grid:{display:false},ticks:{color:'rgb(234,179,8)',callback:v=>fmt(v)},title:{display:true,text:'Kumulativ',color:'rgb(234,179,8)'}},
+      }}
+    });
+    return()=>{if(chartInst.current){chartInst.current.destroy();chartInst.current=null;}};
+  },[monthly,cumul]);
+
+  return(
+    <div className="p-4 md:p-6 space-y-5">
+      <div><h1 className="text-xl font-bold">Liquiditätsplanung</h1><p className="text-sm text-muted-foreground">Saison 2026/27 &middot; Juli bis Juni</p></div>
+
+      <Card className="p-5">
+        <div className="flex justify-between items-center mb-3">
+          <h2 className="text-sm font-semibold">Pflichtspiele pro Monat</h2>
+          <span className="text-xs text-muted-foreground">Gesamt: {spielplan.reduce((a,b)=>a+b,0)} Spiele &middot; wirkt auf "Pro Spiel"-Kostenstellen</span>
+        </div>
+        <div className="overflow-x-auto">
+          <div className="grid grid-cols-12 gap-2 min-w-[650px]">
+            {MONTHS.map((m,i)=>(
+              <div key={m} className="text-center">
+                <div className="text-xs text-muted-foreground mb-1">{m}</div>
+                <NumInput
+                  value={spielplan[i]}
+                  onChange={v=>{const n=[...spielplan];n[i]=Math.max(0,Math.round(v));setSpielplan(n);}}
+                  min={0} max={9}
+                  className="text-center px-1 py-1 text-sm"
+                />
+                <div className="text-xs text-muted-foreground mt-0.5">Sp.</div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </Card>
+
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <StatCard label="Gesamteinnahmen" value={fmt(totInc)} color="text-emerald-600" icon="↑"/>
+        <StatCard label="Gesamtausgaben" value={fmt(totOut)} color="text-red-600" icon="↓"/>
+        <StatCard label="Ergebnis" value={fmt(totInc-totOut)} color={totInc>=totOut?'text-emerald-600':'text-red-600'} icon={totInc>=totOut?'✓':'!'}/>
+      </div>
+
+      <Card className="p-5">
+        <h2 className="text-sm font-semibold mb-4">Monatsverlauf Einnahmen / Ausgaben</h2>
+        <div style={{height:'300px'}}><canvas ref={chartRef}></canvas></div>
+      </Card>
+
+      <Card>
+        <div className="overflow-x-auto"><table className="w-full text-sm">
+          <thead><tr className="border-b border-border text-xs text-muted-foreground uppercase tracking-wide">
+            <th className="px-4 py-3 text-left">Monat</th>
+            <th className="px-4 py-3 text-right">Spiele</th>
+            <th className="px-4 py-3 text-right text-emerald-600">Einnahmen</th>
+            <th className="px-4 py-3 text-right">Spieler</th><th className="px-4 py-3 text-right">Staff</th>
+            <th className="px-4 py-3 text-right">Kosten</th>
+            <th className="px-4 py-3 text-right text-red-600">Ausgaben</th>
+            <th className="px-4 py-3 text-right font-semibold">Saldo</th>
+            <th className="px-4 py-3 text-right text-amber-600">Kumulativ</th>
+          </tr></thead>
+          <tbody>{monthly.map((m,i)=>(
+            <tr key={m.label} className="border-b border-border/50 hover:bg-muted/20 transition-colors">
+              <td className="px-4 py-2 font-medium">{m.label}</td>
+              <td className="px-4 py-2 text-right text-muted-foreground">{m.games}</td>
+              <td className="px-4 py-2 text-right text-emerald-600">{fmt(m.incTotal)}</td>
+              <td className="px-4 py-2 text-right text-muted-foreground">{fmt(m.playerCost)}</td>
+              <td className="px-4 py-2 text-right text-muted-foreground">{fmt(m.staffCost)}</td>
+              <td className="px-4 py-2 text-right text-muted-foreground">{fmt(m.costTotal)}</td>
+              <td className="px-4 py-2 text-right text-red-600">{fmt(m.totalOut)}</td>
+              <td className={'px-4 py-2 text-right font-semibold '+(m.net>=0?'text-emerald-600':'text-red-600')}>{fmt(m.net)}</td>
+              <td className={'px-4 py-2 text-right font-semibold '+(cumul[i]>=0?'text-amber-600':'text-red-600')}>{fmt(cumul[i])}</td>
+            </tr>
+          ))}</tbody>
+          <tfoot><tr className="bg-muted/40 font-bold border-t-2 border-border text-sm">
+            <td className="px-4 py-2">Gesamt</td>
+            <td className="px-4 py-2 text-right">{spielplan.reduce((a,b)=>a+b,0)}</td>
+            <td className="px-4 py-2 text-right text-emerald-600">{fmt(totInc)}</td>
+            <td className="px-4 py-2 text-right">{fmt(monthly.reduce((s,m)=>s+m.playerCost,0))}</td>
+            <td className="px-4 py-2 text-right">{fmt(monthly.reduce((s,m)=>s+m.staffCost,0))}</td>
+            <td className="px-4 py-2 text-right">{fmt(monthly.reduce((s,m)=>s+m.costTotal,0))}</td>
+            <td className="px-4 py-2 text-right text-red-600">{fmt(totOut)}</td>
+            <td className={'px-4 py-2 text-right '+(totInc-totOut>=0?'text-emerald-600':'text-red-600')}>{fmt(totInc-totOut)}</td>
+            <td className="px-4 py-2 text-right text-amber-600">{fmt(cumul[cumul.length-1])}</td>
+          </tr></tfoot>
+        </table></div>
+      </Card>
+    </div>
+  );
+}
+
+// ─── OVERVIEW PAGE ────────────────────────────────────────────────────────────
+function OverviewPage({players,staff,costs,income,spielplan}){
+  const totalGames=useMemo(()=>spielplan.reduce((a,b)=>a+b,0),[spielplan]);
+  const pTotal=useMemo(()=>(players||[]).reduce((s,p)=>{const c=calcP(p);return s+c.ges+(p.rentMonthly||0)*(p.rentMonths||0);},0),[players]);
+  const sTotal=useMemo(()=>(staff||[]).reduce((s,m)=>s+calcS(m).ges,0),[staff]);
+  const cTotal=useMemo(()=>(costs||[]).reduce((s,c)=>s+costYr(c,totalGames),0),[costs,totalGames]);
+  const iTotal=useMemo(()=>(income||[]).reduce((s,i)=>s+incYr(i),0),[income]);
+  const ausgaben=pTotal+sTotal+cTotal;
+  const ergebnis=iTotal-ausgaben;
+  const potPraemien=(players||[]).reduce((s,p)=>s+(p.praemiePunkt||0)*70+(p.praemieEinsatz||0)*28+(p.praemieAufstieg||0)+(p.praemieLandespokal||0),0);
+  const rl=(players||[]).filter(p=>p.team==='regionalliga');
+  const u23=(players||[]).filter(p=>p.team==='u23');
+  const rlCost=rl.reduce((s,p)=>{const c=calcP(p);return s+c.ges+(p.rentMonthly||0)*(p.rentMonths||0);},0);
+  const u23Cost=u23.reduce((s,p)=>{const c=calcP(p);return s+c.ges+(p.rentMonthly||0)*(p.rentMonths||0);},0);
+  const incomeByCat=useMemo(()=>{const g={};(income||[]).forEach(i=>{if(!g[i.category])g[i.category]=0;g[i.category]+=incYr(i);});return Object.entries(g).sort((a,b)=>b[1]-a[1]);},[income]);
+  const costByCat=useMemo(()=>{const g={};(costs||[]).forEach(c=>{if(!g[c.category])g[c.category]=0;g[c.category]+=costYr(c,totalGames);});return Object.entries(g).sort((a,b)=>b[1]-a[1]).slice(0,8);},[costs,totalGames]);
+  const geburtstage=useMemo(()=>naechsteGeburtstage([
+    ...(players||[]).map(p=>({id:p.id,name:p.name,geburtstag:p.geburtstag,rolle:TEAM_LBL[p.team]||p.position||'Spieler'})),
+    ...(staff||[]).map(s=>({id:s.id,name:s.name,geburtstag:s.geburtstag,rolle:s.funktion||'Staff',istStaff:true})),
+  ]),[players,staff]);
+
+  function Bar({label,val,tot,color}){
+    const pct=tot>0?Math.min(val/tot*100,100):0;
+    return(
+      <div>
+        <div className="flex justify-between text-sm mb-1">
+          <span>{label}</span>
+          <span className="font-medium">{fmt(val)} <span className="text-muted-foreground text-xs">({tot>0?(val/tot*100).toFixed(1):0}%)</span></span>
+        </div>
+        <div className="h-1.5 rounded-full bg-muted overflow-hidden">
+          <div className={cx('h-full rounded-full',color)} style={{width:pct+'%'}}></div>
+        </div>
+      </div>
+    );
+  }
+
+  return(
+    <div className="p-4 md:p-6 space-y-6">
+      <div><h1 className="text-xl font-bold">Budget Saison 2026/27</h1><p className="text-sm text-muted-foreground">FK Bregalnica Štip – Übersicht</p></div>
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <StatCard label="Einnahmen" value={fmt(iTotal)} color="text-emerald-600" sub={(income||[]).length+' Positionen'} icon="↑"/>
+        <StatCard label="Ausgaben (fix)" value={fmt(ausgaben)} color="text-red-600" sub={(costs||[]).length+' Kostenstellen'} icon="↓"/>
+        <StatCard label="Ergebnis" value={fmt(ergebnis)} color={ergebnis>=0?'text-emerald-600':'text-red-600'} sub={ergebnis>=0?'Überschuss':'Defizit'} icon={ergebnis>=0?'✓':'!'}/>
+        <StatCard label="Deckungsgrad" value={ausgaben>0?(iTotal/ausgaben*100).toFixed(1)+'%':'-'} color={iTotal>=ausgaben?'text-emerald-600':'text-amber-600'} sub="Einnahmen / Ausgaben"/>
+      </div>
+      {geburtstage.length>0&&(
+        <Card className="p-5">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">🎂 Geburtstage</h2>
+            <span className="text-xs text-muted-foreground">{geburtstage.length} mit Datum</span>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5">
+            {geburtstage.slice(0,6).map(p=>{const heute=p.tage===0;const bald=p.tage!=null&&p.tage<=14;return(
+              <div key={p.id} className={cx('flex items-center gap-3 rounded-xl border p-3 transition-colors',heute?'border-pink-300 bg-pink-50':bald?'border-amber-200 bg-amber-50/60':'border-border bg-card')}>
+                <div className={cx('w-10 h-10 rounded-full flex flex-col items-center justify-center shrink-0 leading-none',heute?'bg-pink-500 text-white':'bg-muted text-foreground')}>
+                  <span className="text-[13px] font-extrabold">{p.geburtstag?fmtShort(p.geburtstag).replace(/\.$/,''):''}</span>
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="text-sm font-semibold truncate">{p.name||'–'}{heute&&' 🎉'}</div>
+                  <div className="text-[11px] text-muted-foreground truncate">{p.rolle}{(!p.istStaff&&p.wirdAlt!=null)?' · wird '+p.wirdAlt:''}</div>
+                </div>
+                <span className={cx('text-[11px] font-semibold shrink-0',heute?'text-pink-600':bald?'text-amber-600':'text-muted-foreground')}>{gebTageText(p.tage)}</span>
+              </div>
+            );})}
+          </div>
+        </Card>
+      )}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        <Card className="p-5">
+          <h2 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-4">Ausgaben nach Bereich</h2>
+          <div className="space-y-3">
+            <Bar label={'Spieler RL ('+rl.length+')'} val={rlCost} tot={ausgaben} color="bg-primary"/>
+            <Bar label={'Spieler U23 ('+u23.length+')'} val={u23Cost} tot={ausgaben} color="bg-primary/60"/>
+            <Bar label={'Staff ('+(staff||[]).length+')'} val={sTotal} tot={ausgaben} color="bg-blue-500"/>
+            <Bar label={'Kostenstellen ('+(costs||[]).length+')'} val={cTotal} tot={ausgaben} color="bg-amber-500"/>
+            <div className="pt-2 border-t border-border flex justify-between font-bold text-sm"><span>Gesamt Ausgaben</span><span>{fmt(ausgaben)}</span></div>
+          </div>
+        </Card>
+        <Card className="p-5">
+          <h2 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-4">Einnahmen nach Kategorie</h2>
+          {incomeByCat.length===0?<Empty msg="Noch keine Einnahmen."/>:<div className="space-y-3">
+            {incomeByCat.map(([cat,val])=>(
+              <div key={cat}>
+                <div className="flex justify-between text-sm mb-1"><span>{cat}</span><span className="font-medium text-emerald-600">{fmt(val)} <span className="text-muted-foreground text-xs">({iTotal>0?(val/iTotal*100).toFixed(1):0}%)</span></span></div>
+                <div className="h-1.5 rounded-full bg-muted overflow-hidden"><div className="h-full rounded-full bg-emerald-500" style={{width:(iTotal>0?Math.min(val/iTotal*100,100):0)+'%'}}></div></div>
+              </div>
+            ))}
+            <div className="pt-2 border-t border-border flex justify-between font-bold text-sm text-emerald-600"><span>Gesamt Einnahmen</span><span>{fmt(iTotal)}</span></div>
+          </div>}
+        </Card>
+      </div>
+      {costByCat.length>0&&<Card className="p-5">
+        <h2 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-4">Kostenstellen nach Kategorie</h2>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">{costByCat.map(([cat,val])=>(
+          <div key={cat} className="flex justify-between items-center p-3 rounded-lg bg-muted/40 text-sm">
+            <span className="text-muted-foreground">{cat}</span><span className="font-semibold">{fmt(val)}</span>
+          </div>
+        ))}</div>
+      </Card>}
+      <Card className="p-5">
+        <h2 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-4">Gewinn- und Verlustrechnung</h2>
+        <div className="space-y-1 text-sm max-w-lg">
+          <div className="flex justify-between py-1"><span className="text-muted-foreground">Spielerkosten Regionalliga</span><span>{fmt(rlCost)}</span></div>
+          <div className="flex justify-between py-1"><span className="text-muted-foreground">Spielerkosten Oberliga (U23)</span><span>{fmt(u23Cost)}</span></div>
+          <div className="flex justify-between py-1"><span className="text-muted-foreground">Personalkosten Staff</span><span>{fmt(sTotal)}</span></div>
+          <div className="flex justify-between py-1 border-b border-border"><span className="text-muted-foreground">Sonstige Kosten</span><span>{fmt(cTotal)}</span></div>
+          <div className="flex justify-between py-1 font-semibold"><span>Gesamtausgaben (fix)</span><span className="text-red-600">{fmt(ausgaben)}</span></div>
+          <div className="flex justify-between py-1 font-semibold border-b border-border"><span>Gesamteinnahmen</span><span className="text-emerald-600">{fmt(iTotal)}</span></div>
+          <div className="flex justify-between py-2 font-bold text-base border-t-2 border-border mt-1">
+            <span>{ergebnis>=0?'Jahresüberschuss':'Jahresfehlbetrag'}</span>
+            <span className={ergebnis>=0?'text-emerald-600':'text-red-600'}>{fmt(ergebnis)}</span>
+          </div>
+        </div>
+      </Card>
+    </div>
+  );
+}
+
+// ─── WOHNUNGEN PAGE ──────────────────────────────────────────────────────────
+function WohnungForm({wohnung,onSave,onClose}){
+  const [d,setD]=useState({
+    spieler:'',adresse:'',bezeichnung:'',vermieter:'',
+    warmmiete:0,kaltmiete:0,nebenkosten:0,
+    zimmer:'',beginn:'',ende:'',anmerkungen:'',
+    ...(wohnung||{})
+  });
+  if(!d.id)d.id=uid();
+  const set=(k,v)=>setD(p=>({...p,[k]:v}));
+  return(
+    <div className="space-y-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <Field label="Spieler / Bewohner" className="sm:col-span-2">
+          <TxtInput value={d.spieler} onChange={v=>set('spieler',v)} placeholder="Name des Spielers"/>
+        </Field>
+        <Field label="Adresse" className="sm:col-span-2">
+          <TxtInput value={d.adresse} onChange={v=>set('adresse',v)} placeholder="Straße, PLZ Ort"/>
+        </Field>
+        <Field label="Bezeichnung">
+          <TxtInput value={d.bezeichnung} onChange={v=>set('bezeichnung',v)} placeholder="z.B. 2-Zimmer-Wohnung"/>
+        </Field>
+        <Field label="Vermieter">
+          <TxtInput value={d.vermieter} onChange={v=>set('vermieter',v)} placeholder="Name / Vermieter"/>
+        </Field>
+        <Field label="Warmmiete / Monat (EUR)">
+          <NumInput value={d.warmmiete} onChange={v=>set('warmmiete',v)} min={0}/>
+        </Field>
+        <Field label="Kaltmiete / Monat (EUR)">
+          <NumInput value={d.kaltmiete} onChange={v=>set('kaltmiete',v)} min={0}/>
+        </Field>
+        <Field label="Nebenkosten / Monat (EUR)">
+          <NumInput value={d.nebenkosten} onChange={v=>set('nebenkosten',v)} min={0}/>
+        </Field>
+        <Field label="Zimmeranzahl">
+          <TxtInput value={d.zimmer} onChange={v=>set('zimmer',v)} placeholder="z.B. 2"/>
+        </Field>
+        <Field label="Mietbeginn">
+          <input type="date" value={d.beginn} onChange={e=>set('beginn',e.target.value)} className="w-full border border-input rounded-md px-3 py-2 text-sm bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-ring"/>
+        </Field>
+        <Field label="Mietende">
+          <input type="date" value={d.ende} onChange={e=>set('ende',e.target.value)} className="w-full border border-input rounded-md px-3 py-2 text-sm bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-ring"/>
+        </Field>
+        <Field label="Anmerkungen" className="sm:col-span-2">
+          <textarea value={d.anmerkungen} onChange={e=>set('anmerkungen',e.target.value)} rows={3} placeholder="Notizen zur Wohnung..." className="w-full border border-input rounded-md px-3 py-2 text-sm bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-ring resize-none"/>
+        </Field>
+      </div>
+      <div className="bg-muted/40 rounded-lg p-3 text-sm space-y-1">
+        <div className="flex justify-between"><span className="text-muted-foreground">Kaltmiete/M</span><span>{fmt(d.kaltmiete)}</span></div>
+        <div className="flex justify-between"><span className="text-muted-foreground">Nebenkosten/M</span><span>{fmt(d.nebenkosten)}</span></div>
+        <div className="flex justify-between font-semibold border-t border-border pt-1 mt-1"><span>Warmmiete/M</span><span className="text-primary">{fmt(d.warmmiete||((d.kaltmiete||0)+(d.nebenkosten||0)))}</span></div>
+        <div className="flex justify-between text-xs text-muted-foreground"><span>× 12 Monate</span><span>{fmt((d.warmmiete||((d.kaltmiete||0)+(d.nebenkosten||0)))*12)} /Jahr</span></div>
+      </div>
+      <div className="flex justify-end gap-3 pt-2">
+        <Btn variant="outline" onClick={onClose}>Abbrechen</Btn>
+        <Btn onClick={()=>onSave(d)}>Speichern</Btn>
+      </div>
+    </div>
+  );
+}
+
+function WohnungenPage({wohnungen,onChange}){
+  const [modal,setModal]=useState(false);
+  const [editing,setEditing]=useState(null);
+  const list=wohnungen||[];
+  const save=w=>{onChange(editing?list.map(x=>x.id===w.id?w:x):[...list,w]);setModal(false);setEditing(null);};
+  const gesamtWarm=list.reduce((s,w)=>s+(w.warmmiete||((w.kaltmiete||0)+(w.nebenkosten||0))),0);
+  return(
+    <div className="p-4 md:p-6 space-y-5">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <h1 className="text-xl font-bold">Wohnungen</h1>
+          <p className="text-sm text-muted-foreground">{list.length} Wohnungen &middot; {fmt(gesamtWarm)}/Monat gesamt</p>
+        </div>
+        <Btn onClick={()=>{setEditing(null);setModal(true);}}>+ Wohnung hinzufügen</Btn>
+      </div>
+      {list.length===0
+        ?<Card><Empty msg="Noch keine Wohnungen angelegt." action={<Btn onClick={()=>{setEditing(null);setModal(true);}}>+ Wohnung hinzufügen</Btn>}/></Card>
+        :<>
+          <Card>
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead><tr className="border-b border-border text-xs text-muted-foreground uppercase tracking-wide text-left">
+                  <th className="px-4 py-3">Spieler</th>
+                  <th className="px-4 py-3">Adresse</th>
+                  <th className="px-4 py-3">Bezeichnung</th>
+                  <th className="px-4 py-3">Vermieter</th>
+                  <th className="px-4 py-3 text-right">Kaltmiete/M</th>
+                  <th className="px-4 py-3 text-right">NK/M</th>
+                  <th className="px-4 py-3 text-right font-semibold">Warmmiete/M</th>
+                  <th className="px-4 py-3 text-right">p.a.</th>
+                  <th className="px-4 py-3">Zeitraum</th>
+                  <th className="px-4 py-3"></th>
+                </tr></thead>
+                <tbody>
+                  {list.map((w,wi)=>{
+                    const warm=w.warmmiete||((w.kaltmiete||0)+(w.nebenkosten||0));
+                    return(
+                      <tr key={w.id} className="border-b border-border/50 hover:bg-muted/30 transition-colors">
+                        <td className="px-4 py-2.5 font-medium">{w.spieler||'-'}</td>
+                        <td className="px-4 py-2.5 text-muted-foreground text-xs max-w-40">
+                          {w.adresse?<span title={w.adresse} className="block truncate">{w.adresse}</span>:'-'}
+                        </td>
+                        <td className="px-4 py-2.5 text-muted-foreground">{w.bezeichnung||'-'}</td>
+                        <td className="px-4 py-2.5 text-muted-foreground">{w.vermieter||'-'}</td>
+                        <td className="px-4 py-2.5 text-right">{w.kaltmiete?fmt(w.kaltmiete):'-'}</td>
+                        <td className="px-4 py-2.5 text-right">{w.nebenkosten?fmt(w.nebenkosten):'-'}</td>
+                        <td className="px-4 py-2.5 text-right font-semibold text-primary">{fmt(warm)}</td>
+                        <td className="px-4 py-2.5 text-right text-muted-foreground">{fmt(warm*12)}</td>
+                        <td className="px-4 py-2.5 text-xs text-muted-foreground">
+                          {w.beginn&&<span>{w.beginn.slice(0,7)}</span>}
+                          {w.beginn&&w.ende&&<span> – </span>}
+                          {w.ende&&<span>{w.ende.slice(0,7)}</span>}
+                          {!w.beginn&&!w.ende&&'-'}
+                        </td>
+                        <td className="px-4 py-2.5">
+                          <div className="flex justify-end items-center gap-0.5">
+                            <button onClick={()=>{setEditing(w);setModal(true);}} className="hover:text-primary cursor-pointer p-1 rounded transition-colors">✎</button>
+                            <DelBtn onDelete={()=>onChange(list.filter(x=>x.id!==w.id))}/>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+                <tfoot><tr className="bg-muted/40 font-semibold text-sm border-t-2 border-border">
+                  <td className="px-4 py-2" colSpan="4">Gesamt ({list.length})</td>
+                  <td className="px-4 py-2 text-right">{fmt(list.reduce((s,w)=>s+(w.kaltmiete||0),0))}</td>
+                  <td className="px-4 py-2 text-right">{fmt(list.reduce((s,w)=>s+(w.nebenkosten||0),0))}</td>
+                  <td className="px-4 py-2 text-right text-primary">{fmt(gesamtWarm)}</td>
+                  <td className="px-4 py-2 text-right text-muted-foreground">{fmt(gesamtWarm*12)}</td>
+                  <td colSpan="2"></td>
+                </tr></tfoot>
+              </table>
+            </div>
+          </Card>
+          {list.filter(w=>w.anmerkungen).length>0&&(
+            <Card className="p-4">
+              <h3 className="text-sm font-semibold mb-3">Anmerkungen</h3>
+              <div className="space-y-2">
+                {list.filter(w=>w.anmerkungen).map(w=>(
+                  <div key={w.id} className="text-sm">
+                    <span className="font-medium">{w.spieler||'–'}</span>
+                    <span className="text-muted-foreground ml-2">{w.anmerkungen}</span>
+                  </div>
+                ))}
+              </div>
+            </Card>
+          )}
+        </>
+      }
+      <Modal open={modal} onClose={()=>{setModal(false);setEditing(null);}} title={editing?'Wohnung bearbeiten':'Neue Wohnung'} wide>
+        <WohnungForm wohnung={editing} onSave={save} onClose={()=>{setModal(false);setEditing(null);}}/>
+      </Modal>
+    </div>
+  );
+}
+
+// ─── KALENDER / TERMINE ───────────────────────────────────────────────────────
+const isMatchTyp=t=>['regionalliga','pokal','testspiel'].includes(t);
+const terminTitel=e=>{
+  if(isMatchTyp(e.type)&&e.title) return e.home===false?(e.title+' – FK Bregalnica Štip'):('FK Bregalnica Štip – '+e.title);
+  return e.title||tTyp(e.type).label;
+};
+const isoOf=d=>{const y=d.getFullYear();const m=String(d.getMonth()+1).padStart(2,'0');const dd=String(d.getDate()).padStart(2,'0');return y+'-'+m+'-'+dd;};
+const addDaysIso=(iso,n)=>{const d=new Date(iso+'T00:00:00');d.setDate(d.getDate()+n);return isoOf(d);};
+const fmtShort=iso=>{const d=new Date(iso+'T00:00:00');return String(d.getDate()).padStart(2,'0')+'.'+String(d.getMonth()+1).padStart(2,'0')+'.';};
+const eventsOnDate=(events,iso)=>events.filter(e=>e.date&&iso>=e.date&&iso<=(e.dateEnd||e.date)).sort((a,b)=>(a.timeStart||'99').localeCompare(b.timeStart||'99'));
+const sortTermine=arr=>[...arr].filter(e=>e.date).sort((a,b)=>(a.date+(a.timeStart||'99')).localeCompare(b.date+(b.timeStart||'99')));
+function buildMonthGrid(year,month){
+  const first=new Date(year,month,1);
+  const startDow=(first.getDay()+6)%7;
+  const days=new Date(year,month+1,0).getDate();
+  const cells=[];
+  for(let i=0;i<startDow;i++)cells.push(null);
+  for(let d=1;d<=days;d++)cells.push(new Date(year,month,d));
+  while(cells.length%7!==0)cells.push(null);
+  return cells;
+}
+
+// ── ICS Export (Apple/Google Kalender) ──
+function downloadICS(events,geburtstage){
+  const escICS=s=>String(s||'').replace(/\\/g,'\\\\').replace(/;/g,'\\;').replace(/,/g,'\\,').replace(/\n/g,'\\n');
+  const dtT=(iso,time)=>{const [y,m,d]=iso.split('-');const [hh,mm]=(time||'00:00').split(':');return y+m+d+'T'+hh.padStart(2,'0')+mm.padStart(2,'0')+'00';};
+  const addH=(t,h)=>{const [hh,mm]=t.split(':').map(Number);return String((hh+h)%24).padStart(2,'0')+':'+String(mm).padStart(2,'0');};
+  const stamp=dtT(isoOf(new Date()),new Date().getHours()+':'+new Date().getMinutes());
+  const L=['BEGIN:VCALENDAR','VERSION:2.0','PRODID:-//FK Bregalnica Štip//Terminkalender//DE','CALSCALE:GREGORIAN','METHOD:PUBLISH','X-WR-CALNAME:FK Bregalnica Štip – Termine','X-WR-TIMEZONE:Europe/Berlin'];
+  sortTermine(events).forEach(e=>{
+    const t=tTyp(e.type), titel=terminTitel(e), mehrtag=e.dateEnd&&e.dateEnd>e.date;
+    L.push('BEGIN:VEVENT','UID:'+(e.id||uid())+'@bregalnica-stip','DTSTAMP:'+stamp);
+    if(e.timeStart){
+      L.push('DTSTART:'+dtT(e.date,e.timeStart));
+      L.push('DTEND:'+dtT(mehrtag?e.dateEnd:e.date,e.timeEnd||addH(e.timeStart,2)));
+    }else{
+      L.push('DTSTART;VALUE=DATE:'+e.date.replace(/-/g,''));
+      L.push('DTEND;VALUE=DATE:'+addDaysIso(mehrtag?e.dateEnd:e.date,1).replace(/-/g,''));
+    }
+    L.push('SUMMARY:'+escICS(t.icon+' '+titel));
+    if(e.location)L.push('LOCATION:'+escICS(e.location));
+    const desc=[t.label,e.notes].filter(Boolean).join(' — ');
+    if(desc)L.push('DESCRIPTION:'+escICS(desc));
+    L.push('END:VEVENT');
+  });
+  // Geburtstage als jaehrlich wiederkehrende Ganztags-Termine
+  (geburtstage||[]).forEach(p=>{
+    if(!p||!p.geburtstag||!p.name||p.geburtstag.length<10)return;
+    L.push('BEGIN:VEVENT','UID:geb-'+escICS(p.id||p.name)+'@bregalnica-stip','DTSTAMP:'+stamp);
+    L.push('DTSTART;VALUE=DATE:'+p.geburtstag.replace(/-/g,''));
+    L.push('DTEND;VALUE=DATE:'+addDaysIso(p.geburtstag,1).replace(/-/g,''));
+    L.push('RRULE:FREQ=YEARLY');
+    L.push('SUMMARY:'+escICS('🎂 '+p.name+' (Geburtstag)'));
+    L.push('END:VEVENT');
+  });
+  L.push('END:VCALENDAR');
+  const blob=new Blob([L.join('\r\n')],{type:'text/calendar;charset=utf-8'});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a');a.href=url;a.download='bregalnica-termine.ics';a.click();
+  setTimeout(()=>URL.revokeObjectURL(url),2000);
+}
+
+// ── Druck / PDF Export (schöner Plan für Spieler) ──
+function openPrintPlan(events,geburtstage,startIso,endIso){
+  const esc=s=>String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  const sorted=sortTermine(events);
+  if(!sorted.length){alert('Keine Termine zum Exportieren vorhanden.');return;}
+  const gebItems=gebOccurrences(geburtstage,startIso||sorted[0].date,endIso||sorted[sorted.length-1].date);
+  const all=sorted.concat(gebItems).sort((a,b)=>(a.date+(a._geb?'~~':(a.timeStart||'00:00'))).localeCompare(b.date+(b._geb?'~~':(b.timeStart||'00:00'))));
+  const groups=[],map={};
+  all.forEach(e=>{
+    const d=new Date(e.date+'T00:00:00'),key=d.getFullYear()+'-'+d.getMonth();
+    if(!map[key]){map[key]={label:MONATE_LANG[d.getMonth()]+' '+d.getFullYear(),days:[],dmap:{}};groups.push(map[key]);}
+    const g=map[key];
+    if(!g.dmap[e.date]){g.dmap[e.date]={date:e.date,items:[]};g.days.push(g.dmap[e.date]);}
+    g.dmap[e.date].items.push(e);
+  });
+  const evInner=e=>{
+    if(e._geb)return '<div class="ev gebev" style="border-left-color:#ec4899">'
+      +'<div class="evm"><div class="evt"><span class="evic">🎂</span>'+esc(e.name)+(e.alter!=null?' <span class="evspan">wird '+e.alter+'</span>':'')+'</div>'
+      +'<div class="evmeta">Geburtstag'+(e.rolle?' &nbsp;·&nbsp; '+esc(e.rolle):'')+'</div></div>'
+      +'<div class="evb" style="background:#ec4899">🎂</div></div>';
+    const t=tTyp(e.type);
+    const zeit=e.timeStart?(e.timeStart+(e.timeEnd?(' – '+e.timeEnd):'')+' Uhr'):'ganztägig';
+    const mehrtag=e.dateEnd&&e.dateEnd>e.date;
+    return '<div class="ev" style="border-left-color:'+t.hex+'">'
+      +'<div class="evm"><div class="evt">'+(t.img&&t.img.indexOf('data:')===0?'<img class="evicimg" src="'+t.img+'">':'<span class="evic">'+t.icon+'</span>')+esc(terminTitel(e))+(mehrtag?' <span class="evspan">bis '+fmtShort(e.dateEnd)+'</span>':'')+'</div>'
+      +'<div class="evmeta">'+zeit+(e.location?' &nbsp;·&nbsp; 📍 '+esc(e.location):'')+'</div>'
+      +(e.notes?'<div class="evnotes">'+esc(e.notes)+'</div>':'')+'</div>'
+      +'<div class="evb" style="background:'+t.hex+'">'+esc(t.kurz)+'</div></div>';
+  };
+  const dayBlock=day=>{
+    const d=new Date(day.date+'T00:00:00');
+    const tag=String(d.getDate()).padStart(2,'0'),wd=WTAGE[(d.getDay()+6)%7];
+    const firstEv=day.items.find(x=>!x._geb);
+    const farbe=firstEv?tTyp(firstEv.type).hex:'#db2777';
+    return '<div class="day">'
+      +'<div class="evd"><div class="evday" style="color:'+farbe+'">'+tag+'</div><div class="evwd">'+wd+'</div></div>'
+      +'<div class="dayevs">'+day.items.map(evInner).join('')+'</div></div>';
+  };
+  const body=groups.map(g=>'<section class="mon"><h2 class="monh">'+esc(g.label)+'</h2>'+g.days.map(dayBlock).join('')+'</section>').join('');
+  const legende=TERMIN_TYPEN.map(t=>'<span class="lg"><span class="lgd" style="background:'+t.hex+'"></span>'+(t.img&&t.img.indexOf('data:')===0?'<img class="lgimg" src="'+t.img+'">':t.icon)+' '+esc(t.label)+'</span>').join('')
+    +(gebItems.length?'<span class="lg"><span class="lgd" style="background:#ec4899"></span>🎂 Geburtstag</span>':'');
+  const heute=new Date().toLocaleDateString('de-DE',{day:'2-digit',month:'long',year:'numeric'});
+  const css='*{margin:0;padding:0;box-sizing:border-box}'
+    +'body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;color:#1f2937;background:#f3f4f6;-webkit-print-color-adjust:exact;print-color-adjust:exact}'
+    +'.page{max-width:820px;margin:0 auto;padding:24px}'
+    +'.hd{background:linear-gradient(135deg,#0b5f88 0%,#1391c9 55%,#29abe2 100%);border-radius:20px;padding:28px 32px;display:flex;align-items:center;gap:22px;color:#fff;box-shadow:0 10px 30px rgba(20,145,201,.28)}'
+    +'.hdlogo{width:84px;height:84px;background:#fff;border-radius:18px;display:flex;align-items:center;justify-content:center;flex-shrink:0;box-shadow:0 4px 12px rgba(0,0,0,.2)}'
+    +'.hdlogo img{width:64px;height:64px;object-fit:contain}'
+    +'.hdt1{font-size:13px;letter-spacing:3px;text-transform:uppercase;opacity:.85;font-weight:600}'
+    +'.hdt2{font-size:28px;font-weight:800;line-height:1.15;margin:2px 0 4px}'
+    +'.hdt3{font-size:14px;opacity:.9}'
+    +'.legende{display:flex;flex-wrap:wrap;gap:8px 16px;margin:18px 4px 6px;font-size:12px;color:#4b5563}'
+    +'.lg{display:inline-flex;align-items:center;gap:6px}'
+    +'.lgd{width:11px;height:11px;border-radius:50%;display:inline-block}'
+    +'.mon{margin-top:22px}'
+    +'.monh{font-size:13px;font-weight:800;text-transform:uppercase;letter-spacing:2px;color:#1391c9;border-bottom:2px solid #bae6fd;padding-bottom:6px;margin-bottom:12px;break-inside:avoid;break-after:avoid}'
+    +'.day{display:flex;align-items:stretch;gap:14px;background:#fff;border:1px solid #e5e7eb;border-radius:12px;padding:12px 14px;margin-bottom:9px;box-shadow:0 1px 3px rgba(0,0,0,.05)}'
+    +'.evd{width:52px;text-align:center;flex-shrink:0;border-right:1px solid #f0f0f0;padding-right:12px;display:flex;flex-direction:column;justify-content:flex-start}'
+    +'.dayevs{flex:1;min-width:0;display:flex;flex-direction:column}'
+    +'.ev{display:flex;align-items:stretch;gap:12px;border-left:4px solid #ccc;padding-left:12px;break-inside:avoid}'
+    +'.dayevs .ev+.ev{border-top:1px solid #f0f0f0;margin-top:10px;padding-top:10px}'
+    +'.evday{font-size:24px;font-weight:800;line-height:1}'
+    +'.evwd{font-size:11px;text-transform:uppercase;color:#9ca3af;font-weight:600;margin-top:2px}'
+    +'.evm{flex:1;min-width:0;display:flex;flex-direction:column;justify-content:flex-start}'
+    +'.evt{font-size:15px;font-weight:700;color:#111827;display:flex;align-items:center;gap:7px;flex-wrap:wrap}'
+    +'.evic{font-size:16px}.evicimg{height:18px;width:auto;vertical-align:-4px;margin-right:1px}.lgimg{height:14px;width:auto;vertical-align:-3px}'
+    +'.evspan{font-size:11px;font-weight:600;color:#6b7280;background:#f3f4f6;padding:1px 7px;border-radius:99px}'
+    +'.evmeta{font-size:12.5px;color:#6b7280;margin-top:3px}'
+    +'.evnotes{font-size:12px;color:#9ca3af;margin-top:4px;font-style:italic}'
+    +'.evb{align-self:center;color:#fff;font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.5px;padding:4px 9px;border-radius:99px;flex-shrink:0}'
+    +'.gebev .evt{color:#9d174d}.gebev .evb{font-size:13px;padding:3px 7px}'
+    +'.ft{margin-top:28px;padding-top:14px;border-top:1px solid #e5e7eb;display:flex;justify-content:space-between;align-items:center;font-size:11px;color:#9ca3af}'
+    +'.ftlogo{display:flex;align-items:center;gap:8px;font-weight:700;color:#1391c9}'
+    +'.ftlogo img{width:22px;height:22px}'
+    +'@media print{body{background:#fff}.page{padding:0}.hd{box-shadow:none}.noprint{display:none}@page{margin:14mm}}';
+  const logoImg=LOGO?'<img src="'+LOGO+'" alt="Logo">':'<span style="font-size:32px;font-weight:800;color:#1391c9">B</span>';
+  const html='<!doctype html><html lang="de"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Terminplan – FK Bregalnica Štip</title><style>'+css+'</style></head><body><div class="page">'
+    +'<header class="hd"><div class="hdlogo">'+logoImg+'</div><div><div class="hdt1">FK Bregalnica Štip</div><div class="hdt2">Terminplan</div><div class="hdt3">Saison 2026 / 27 &nbsp;·&nbsp; '+sorted.length+' Termine</div></div></header>'
+    +'<div class="legende">'+legende+'</div>'
+    +body
+    +'<footer class="ft"><div class="ftlogo">'+logoImg+'<span>FK Bregalnica Štip</span></div><div>Stand: '+heute+'</div></footer>'
+    +'</div><scr'+'ipt>window.onload=function(){setTimeout(function(){window.print();},400);};<\/scr'+'ipt></body></html>';
+  const w=window.open('','_blank');
+  if(!w){alert('Bitte Popups für diese Seite erlauben, um den Plan zu drucken/als PDF zu speichern.');return;}
+  w.document.write(html);w.document.close();
+}
+
+// ── Termin-Formular ──
+const inpCls='w-full rounded-md border border-border bg-background px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary/40';
+function TerminForm({termin,onSave,onClose,onDelete}){
+  const isEdit=!!(termin&&termin.id);
+  const [d,setD]=useState({type:'training',title:'Training',date:isoOf(new Date()),dateEnd:'',timeStart:'',timeEnd:'',location:'',home:true,notes:'',...(termin||{})});
+  if(!d.id)d.id=uid();
+  const [err,setErr]=useState('');
+  const [askDel,setAskDel]=useState(false);
+  const set=(k,v)=>{setD(p=>({...p,[k]:v}));setErr('');};
+  // Typ-Wechsel: bei "Training" Bezeichnung automatisch vorbelegen; den Auto-Wert beim Wechsel weg wieder entfernen.
+  // Bezeichnung automatisch vorbelegen für einfache Kategorien (Training/Essen/Teamsitzung); beim Wechsel weg wieder leeren.
+  const AUTO_TITEL={training:'Training',essen:'Essen',teamsitzung:'Teamsitzung'};
+  const pickType=id=>{setErr('');setD(p=>{const np={...p,type:id};const auto=AUTO_TITEL[id];const istAuto=Object.values(AUTO_TITEL).includes(p.title);if(auto){if(!p.title||istAuto)np.title=auto;}else if(istAuto){np.title='';}return np;});};
+  const isMatch=isMatchTyp(d.type);
+  const submit=()=>{if(!d.date){setErr('date');return;}if(!d.title&&!isMatch){setErr('title');return;}onSave(d);};
+  return(
+    <div className="space-y-4">
+      <Field label="Art des Termins">
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+          {TERMIN_TYPEN.map(t=>(
+            <button key={t.id} onClick={()=>pickType(t.id)} className={cx('flex items-center gap-2 px-3 py-2 rounded-lg border text-sm font-medium transition-all cursor-pointer',d.type===t.id?'border-transparent text-white shadow-md':'border-border bg-background hover:bg-accent text-foreground')} style={d.type===t.id?{background:t.hex}:undefined}>
+              <TypIcon t={t} className="text-base h-[1.2em] w-[1.2em] shrink-0"/><span className="truncate">{t.label}</span>
+            </button>
+          ))}
+        </div>
+      </Field>
+      <Field label={isMatch?'Gegner':'Bezeichnung'} note={isMatch?'Name des Gegners – Bregalnica wird automatisch ergänzt':undefined}>
+        <input type="text" value={d.title||''} onChange={e=>set('title',e.target.value)} placeholder={isMatch?'z.B. VfB Lübeck':d.type==='training'?'z.B. Mannschaftstraining':d.type==='trainingslager'?'z.B. Trainingslager Südtirol':'Bezeichnung'} className={cx('w-full rounded-md border bg-background px-3 py-1.5 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/40',err==='title'?'border-red-400 ring-2 ring-red-300':'border-border')}/>
+      </Field>
+      {isMatch&&(
+        <Field label="Heim / Auswärts">
+          <div className="grid grid-cols-2 gap-2">
+            <button onClick={()=>set('home',true)} className={cx('px-3 py-2 rounded-lg border text-sm font-medium cursor-pointer transition-colors',d.home!==false?'border-primary bg-primary/10 text-primary':'border-border bg-background hover:bg-accent')}>🏠 Heimspiel</button>
+            <button onClick={()=>set('home',false)} className={cx('px-3 py-2 rounded-lg border text-sm font-medium cursor-pointer transition-colors',d.home===false?'border-primary bg-primary/10 text-primary':'border-border bg-background hover:bg-accent')}>✈️ Auswärts</button>
+          </div>
+        </Field>
+      )}
+      <div className="grid grid-cols-2 gap-4">
+        <Field label="Datum"><input type="date" value={d.date} onChange={e=>set('date',e.target.value)} className={cx('w-full rounded-md border bg-background px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary/40',err==='date'?'border-red-400 ring-2 ring-red-300':'border-border')}/></Field>
+        <Field label="Enddatum" note="optional, mehrtägig"><input type="date" value={d.dateEnd} min={d.date||undefined} onChange={e=>set('dateEnd',e.target.value)} className={inpCls}/></Field>
+      </div>
+      <div className="grid grid-cols-2 gap-4">
+        <Field label="Uhrzeit von"><input type="time" value={d.timeStart} onChange={e=>set('timeStart',e.target.value)} className={inpCls}/></Field>
+        <Field label="Uhrzeit bis" note="optional"><input type="time" value={d.timeEnd} onChange={e=>set('timeEnd',e.target.value)} className={inpCls}/></Field>
+      </div>
+      <Field label="Ort"><TxtInput value={d.location} onChange={v=>set('location',v)} placeholder="z.B. Lohmühle, Lübeck"/></Field>
+      <Field label="Notizen"><textarea value={d.notes} onChange={e=>set('notes',e.target.value)} rows={2} placeholder="z.B. Treffpunkt 1,5 h vorher" className={cx(inpCls,'resize-none')}/></Field>
+      {err&&<div className="flex items-center gap-2 rounded-lg bg-red-50 border border-red-200 px-3 py-2 text-sm text-red-700 font-medium"><span>⚠️</span>{err==='date'?'Bitte ein Datum angeben.':'Bitte eine Bezeichnung angeben.'}</div>}
+      <div className="flex items-center justify-between gap-2 pt-2">
+        <div>
+          {isEdit&&onDelete&&(askDel
+            ? <span className="flex items-center gap-2 text-sm"><span className="text-muted-foreground">Löschen?</span><button onClick={onDelete} className="text-red-600 font-bold cursor-pointer px-1 hover:underline">Ja</button><button onClick={()=>setAskDel(false)} className="text-muted-foreground cursor-pointer px-1 hover:underline">Nein</button></span>
+            : <button onClick={()=>setAskDel(true)} className="inline-flex items-center gap-1.5 text-sm text-red-600 hover:text-red-700 hover:underline cursor-pointer font-medium">🗑 Löschen</button>)}
+        </div>
+        <div className="flex gap-2">
+          <Btn variant="outline" onClick={onClose}>Abbrechen</Btn>
+          <Btn onClick={submit}>Speichern</Btn>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── Export-Dialog (Zeitraum wählen) ──
+const SAISON_ENDE='2027-06-30';
+function ExportModal({events,onClose,geburtstage}){
+  const todayIso=isoOf(new Date());
+  const [bis,setBis]=useState(SAISON_ENDE);
+  const [mitVergangenen,setMitVergangenen]=useState(false);
+  const inRange=useMemo(()=>sortTermine((events||[]).filter(e=>{
+    const start=e.date,end=e.dateEnd||e.date;
+    if(!mitVergangenen&&end<todayIso)return false;
+    if(bis&&start>bis)return false;
+    return true;
+  })),[events,bis,mitVergangenen,todayIso]);
+  const preset=w=>{const d=new Date();d.setDate(d.getDate()+w*7);setBis(isoOf(d));};
+  const leer=inRange.length===0;
+  const winStart=mitVergangenen&&inRange.length?inRange[0].date:todayIso;
+  const gebCount=useMemo(()=>gebOccurrences(geburtstage,winStart,bis).length,[geburtstage,winStart,bis]);
+  return(
+    <Modal open onClose={onClose} title="Termine exportieren">
+      <div className="space-y-4">
+        <p className="text-sm text-muted-foreground">Wähle, bis zu welchem Datum exportiert werden soll. Vergangene Termine bleiben standardmäßig außen vor.</p>
+        <Field label="Zeitraum bis (Datum)">
+          <input type="date" value={bis} min={todayIso} onChange={e=>setBis(e.target.value)} className={inpCls}/>
+        </Field>
+        <div className="flex flex-wrap gap-2">
+          <Btn variant="outline" size="xs" onClick={()=>preset(2)}>+2 Wochen</Btn>
+          <Btn variant="outline" size="xs" onClick={()=>preset(4)}>+4 Wochen</Btn>
+          <Btn variant="outline" size="xs" onClick={()=>preset(8)}>+8 Wochen</Btn>
+          <Btn variant="outline" size="xs" onClick={()=>setBis(SAISON_ENDE)}>Bis Saisonende</Btn>
+        </div>
+        <Chk id="exp-vergangen" checked={mitVergangenen} onChange={setMitVergangenen} label="Auch vergangene Termine einbeziehen"/>
+        <div className="rounded-lg bg-muted/40 p-3 text-sm">
+          {leer
+            ?<span className="text-muted-foreground">Keine Termine im gewählten Zeitraum.</span>
+            :<span><strong>{inRange.length}</strong> {inRange.length===1?'Termin':'Termine'} – {fmtShort(inRange[0].date)} bis {fmtShort(inRange[inRange.length-1].dateEnd||inRange[inRange.length-1].date)}{gebCount>0?<span className="text-pink-600 font-medium"> &nbsp;·&nbsp; {gebCount} 🎂 Geburtstag{gebCount>1?'e':''}</span>:null}</span>}
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1">
+          <Btn variant="outline" size="md" disabled={leer} className="justify-center" onClick={()=>downloadICS(inRange,geburtstage)}>📲 Kalender (.ics)</Btn>
+          <Btn size="md" disabled={leer} className="justify-center" onClick={()=>openPrintPlan(inRange,geburtstage,winStart,bis)}>🖨️ Plan / PDF</Btn>
+        </div>
+        <p className="text-xs text-muted-foreground text-center">Das Fenster bleibt offen – du kannst beide Formate erzeugen.</p>
+      </div>
+    </Modal>
+  );
+}
+
+// ── Kalender-Seite ──
+function TerminePage({termine,onChange,canEdit=true,geburtstage=[]}){
+  const list=termine||[];
+  // Geburtstage nach Monat-Tag (MM-DD) gruppieren – wiederholt sich jedes Jahr.
+  const gebMap=useMemo(()=>{const m={};(geburtstage||[]).forEach(p=>{if(p&&p.geburtstag&&p.name){const k=p.geburtstag.slice(5);(m[k]=m[k]||[]).push(p);}});return m;},[geburtstage]);
+  const gebAm=iso=>iso?(gebMap[iso.slice(5)]||[]):[];
+  const gebTitle=(gs,refDate)=>gs.map(g=>{const a=g.istStaff?null:gebAlter(g.geburtstag,refDate);return g.name+(a!=null?' (wird '+a+')':'');}).join(', ');
+  const [modal,setModal]=useState(false);
+  const [editing,setEditing]=useState(null);
+  const [view,setView]=useState('monat');
+  const [filter,setFilter]=useState('all');
+  const [exportOpen,setExportOpen]=useState(false);
+  const initCursor=()=>{const now=new Date();return new Date(now.getFullYear(),now.getMonth(),1);};
+  const [cursor,setCursor]=useState(initCursor);
+  const filtered=useMemo(()=>filter==='all'?list:list.filter(e=>e.type===filter),[list,filter]);
+  const save=e=>{onChange(list.some(x=>x.id===e.id)?list.map(x=>x.id===e.id?e:x):[...list,e]);setModal(false);setEditing(null);};
+  const openNew=iso=>{if(!canEdit)return;setEditing(iso?{date:iso}:null);setModal(true);};
+  const openEdit=e=>{if(!canEdit)return;setEditing(e);setModal(true);};
+  const grid=useMemo(()=>buildMonthGrid(cursor.getFullYear(),cursor.getMonth()),[cursor]);
+  const todayIso=isoOf(new Date());
+  const upcoming=useMemo(()=>sortTermine(filtered).filter(e=>(e.dateEnd||e.date)>=todayIso),[filtered,todayIso]);
+  const counts=useMemo(()=>{const c={};TERMIN_TYPEN.forEach(t=>c[t.id]=list.filter(e=>e.type===t.id).length);return c;},[list]);
+
+  // Agenda gruppiert nach Monat
+  const agenda=useMemo(()=>{
+    const groups=[],map={};
+    sortTermine(filtered).forEach(e=>{
+      const dd=new Date(e.date+'T00:00:00'),key=dd.getFullYear()+'-'+dd.getMonth();
+      if(!map[key]){map[key]={label:MONATE_LANG[dd.getMonth()]+' '+dd.getFullYear(),days:[],dmap:{}};groups.push(map[key]);}
+      const g=map[key];
+      if(!g.dmap[e.date]){g.dmap[e.date]={date:e.date,items:[]};g.days.push(g.dmap[e.date]);}
+      g.dmap[e.date].items.push(e);
+    });
+    return groups;
+  },[filtered]);
+
+  return(
+    <div className="p-4 md:p-6 space-y-5">
+      <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+        <div className="flex items-center gap-3.5">
+          <div className="w-12 h-12 rounded-2xl bg-white flex items-center justify-center shadow-soft ring-1 ring-border/70 shrink-0 overflow-hidden">
+            <LogoMark className="w-9 h-9 object-contain"/>
+          </div>
+          <div>
+            <h1 className="text-2xl font-bold tracking-tight">Kalender</h1>
+            <p className="text-sm text-muted-foreground">{list.length} Termine · Saison 2026/27{!canEdit&&' · nur Ansicht'}</p>
+          </div>
+        </div>
+        <div className="flex flex-col sm:flex-row sm:flex-wrap gap-2">
+          {canEdit&&<Btn onClick={()=>openNew()} size="md" className="justify-center">+ Termin</Btn>}
+          <Btn variant="outline" size="md" onClick={()=>setExportOpen(true)} className="justify-center" title="Termine als Kalender (.ics) oder Plan/PDF exportieren – mit Zeitraum-Auswahl">📤 Exportieren</Btn>
+        </div>
+      </div>
+
+      {/* Ansicht-Umschalter (Segmented Control) + Filter */}
+      <div className="flex flex-col gap-3">
+        <div className="flex p-1 rounded-xl bg-muted w-full sm:w-auto sm:self-end gap-1">
+          <button onClick={()=>setView('monat')} className={cx('flex-1 sm:flex-none px-5 py-2 text-sm font-semibold rounded-lg cursor-pointer transition-all',view==='monat'?'bg-card text-foreground shadow-soft':'text-muted-foreground hover:text-foreground')}>📅 Monat</button>
+          <button onClick={()=>setView('liste')} className={cx('flex-1 sm:flex-none px-5 py-2 text-sm font-semibold rounded-lg cursor-pointer transition-all',view==='liste'?'bg-card text-foreground shadow-soft':'text-muted-foreground hover:text-foreground')}>📋 Liste</button>
+        </div>
+        {/* Filter-Chips – horizontal scrollbar auf dem Handy */}
+        <div className="flex gap-2 overflow-x-auto -mx-1 px-1 pb-1 sm:flex-wrap">
+          <button onClick={()=>setFilter('all')} className={cx('shrink-0 px-3 py-1.5 rounded-full text-xs font-semibold border transition-all cursor-pointer',filter==='all'?'bg-foreground text-background border-transparent':'border-border bg-card hover:bg-accent text-muted-foreground')}>Alle ({list.length})</button>
+          {TERMIN_TYPEN.filter(t=>counts[t.id]>0).map(t=>(
+            <button key={t.id} onClick={()=>setFilter(t.id)} className={cx('shrink-0 px-3 py-1.5 rounded-full text-xs font-semibold border transition-all cursor-pointer flex items-center gap-1',filter===t.id?'text-white border-transparent shadow-soft':'border-border bg-card hover:bg-accent text-muted-foreground')} style={filter===t.id?{background:t.hex}:undefined}>
+              <TypIcon t={t} className="h-[1.1em] w-[1.1em] shrink-0"/>{t.label} ({counts[t.id]})
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {view==='monat'?(
+        <Card className="p-3 sm:p-5 lg:p-6">
+          {/* Monatsnavigation */}
+          <div className="flex items-center justify-between mb-4">
+            <button onClick={()=>setCursor(c=>new Date(c.getFullYear(),c.getMonth()-1,1))} aria-label="Voriger Monat" className="w-10 h-10 rounded-xl hover:bg-muted active:bg-accent flex items-center justify-center cursor-pointer transition-colors text-lg text-muted-foreground shrink-0">‹</button>
+            <div className="text-center">
+              <h2 className="text-base sm:text-lg font-bold tracking-tight">{MONATE_LANG[cursor.getMonth()]} {cursor.getFullYear()}</h2>
+              <button onClick={()=>setCursor(initCursor())} className="inline-flex items-center gap-1 text-xs font-semibold text-primary hover:underline cursor-pointer mt-0.5"><span className="w-1.5 h-1.5 rounded-full bg-primary"/>Heute</button>
+            </div>
+            <button onClick={()=>setCursor(c=>new Date(c.getFullYear(),c.getMonth()+1,1))} aria-label="Nächster Monat" className="w-10 h-10 rounded-xl hover:bg-muted active:bg-accent flex items-center justify-center cursor-pointer transition-colors text-lg text-muted-foreground shrink-0">›</button>
+          </div>
+          {/* Wochentage */}
+          <div className="grid grid-cols-7 gap-1.5 lg:gap-2 mb-1.5">
+            {WTAGE.map(w=><div key={w} className="text-center text-[11px] sm:text-xs lg:text-sm font-semibold text-muted-foreground/70 uppercase tracking-wide py-1 lg:py-2">{w}</div>)}
+          </div>
+          {/* Tage */}
+          <div className="grid grid-cols-7 gap-1.5 lg:gap-2">
+            {grid.map((day,i)=>{
+              if(!day)return <div key={i} className="min-h-[72px] sm:min-h-[100px] lg:min-h-[132px] xl:min-h-[150px] rounded-xl bg-muted/30"/>;
+              const iso=isoOf(day);
+              const evs=eventsOnDate(filtered,iso);
+              const gebs=gebAm(iso);
+              const isToday=iso===todayIso;
+              const isPast=iso<todayIso;
+              return(
+                <div key={i} onClick={canEdit?()=>openNew(iso):undefined} className={cx('min-h-[72px] sm:min-h-[100px] lg:min-h-[132px] xl:min-h-[150px] rounded-xl border p-1.5 transition-all overflow-hidden select-none touch-manipulation flex flex-col',canEdit&&'cursor-pointer',isToday?'border-primary/30 ring-2 ring-primary/15 bg-primary/[0.04]':cx('border-border/70 bg-card',canEdit&&'hover:border-border hover:bg-accent/40'),isPast&&!isToday&&'opacity-45')}>
+                  <div className="mb-1 lg:mb-1.5 px-0.5">
+                    {isToday
+                      ? <span className="inline-flex items-center justify-center w-6 h-6 lg:w-7 lg:h-7 rounded-full bg-primary text-primary-foreground text-xs lg:text-sm font-bold shadow-soft">{day.getDate()}</span>
+                      : <span className={cx('text-xs lg:text-sm font-semibold',isPast?'text-muted-foreground':'text-foreground')}>{day.getDate()}</span>}
+                  </div>
+                  <div className="flex-1">
+                    {/* Handy: nur farbige Icons (Textzeile ist eh nicht lesbar) */}
+                    <div className="flex flex-wrap gap-1 sm:hidden">
+                      {gebs.length>0&&<span className="w-6 h-6 rounded-md flex items-center justify-center text-[13px] leading-none" style={{background:'#fce7f3'}} title={'🎂 '+gebTitle(gebs,day)}>🎂</span>}
+                      {evs.slice(0,4).map(e=>{const t=tTyp(e.type);return(
+                        <button key={e.id} onClick={canEdit?(ev=>{ev.stopPropagation();openEdit(e);}):undefined} className={cx('w-6 h-6 rounded-md flex items-center justify-center text-[13px] leading-none touch-manipulation',canEdit&&'cursor-pointer active:scale-90 transition-transform')} style={{background:t.hex+'26'}} title={terminTitel(e)+(e.timeStart?(' · '+e.timeStart+' Uhr'):'')+(e.location?(' · '+e.location):'')}>
+                          <TypIcon t={t} className="text-[13px] h-[15px] w-[15px]"/>
+                        </button>
+                      );})}
+                      {evs.length>4&&<span className="text-[10px] text-muted-foreground font-bold self-center px-0.5">+{evs.length-4}</span>}
+                    </div>
+                    {/* Desktop: Detail-Chips mit Zeit & Titel */}
+                    <div className="hidden sm:block space-y-1 lg:space-y-1.5">
+                      {gebs.length>0&&<div className="rounded-md lg:rounded-lg px-1.5 py-0.5 lg:px-2 lg:py-1 text-[10px] lg:text-[11px] xl:text-xs leading-tight font-semibold truncate" style={{background:'#fce7f3',color:'#be185d'}} title={'🎂 '+gebTitle(gebs,day)}>🎂 {gebs.length===1?gebs[0].name:gebs.length+' Geburtstage'}</div>}
+                      {evs.slice(0,4).map(e=>{const t=tTyp(e.type);return(
+                        <button key={e.id} onClick={canEdit?(ev=>{ev.stopPropagation();openEdit(e);}):undefined} className={cx('w-full text-left rounded-md lg:rounded-lg px-1.5 py-0.5 lg:px-2 lg:py-1 text-white text-[10px] lg:text-[11px] xl:text-xs leading-tight font-medium truncate touch-manipulation shadow-soft',canEdit&&'cursor-pointer hover:brightness-110 transition-all')} style={{background:t.hex}} title={terminTitel(e)+(e.timeStart?(' · '+e.timeStart):'')+(e.location?(' · '+e.location):'')}>
+                          {e.timeStart?<span className="opacity-80 font-semibold">{e.timeStart} </span>:null}<TypIcon t={t} className="h-[1.15em] w-[1.15em]"/> {e.title||t.label}
+                        </button>
+                      );})}
+                      {evs.length>4&&<div className="text-[9px] lg:text-[11px] text-muted-foreground px-1 font-semibold lg:mt-0.5">+{evs.length-4} weitere</div>}
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </Card>
+      ):(
+        <div className="space-y-5">
+          {agenda.length===0
+            ?<Card><Empty msg="Noch keine Termine angelegt." action={canEdit?<Btn onClick={()=>openNew()}>+ Ersten Termin anlegen</Btn>:undefined}/></Card>
+            :agenda.map(g=>(
+              <div key={g.label}>
+                <h3 className="text-xs font-bold uppercase tracking-wider text-muted-foreground/80 mb-2.5 px-1">{g.label}</h3>
+                <div className="space-y-2">
+                  {g.days.map(day=>{
+                    const t0=tTyp(day.items[0].type),dd=new Date(day.date+'T00:00:00');
+                    const past=day.date<todayIso;
+                    return(
+                      <Card key={day.date} className={cx('p-3 flex items-start gap-3.5 hover:shadow-card hover:-translate-y-0.5 transition-all overflow-hidden',past&&'opacity-55')}>
+                        <div className="w-12 shrink-0 flex flex-col items-center justify-center rounded-xl py-1.5" style={{background:t0.hex+'14'}}>
+                          <div className="text-xl font-extrabold leading-none" style={{color:t0.hex}}>{String(dd.getDate()).padStart(2,'0')}</div>
+                          <div className="text-[10px] uppercase font-semibold mt-0.5" style={{color:t0.hex}}>{WTAGE[(dd.getDay()+6)%7]}</div>
+                        </div>
+                        <div className="flex-1 min-w-0 divide-y divide-border">
+                          {day.items.map(e=>{
+                            const t=tTyp(e.type);
+                            const mehrtag=e.dateEnd&&e.dateEnd>e.date;
+                            return(
+                              <div key={e.id} className="flex items-center gap-3 py-2 first:pt-0 last:pb-0">
+                                <div className="flex-1 min-w-0">
+                                  <div className="font-semibold text-sm flex items-center gap-1.5 flex-wrap">
+                                    <TypIcon t={t} className="h-[1.1em] w-[1.1em] shrink-0"/><span className="truncate">{terminTitel(e)}</span>
+                                    {mehrtag&&<span className="text-[10px] font-medium text-muted-foreground bg-muted px-1.5 py-0.5 rounded-full">bis {fmtShort(e.dateEnd)}</span>}
+                                  </div>
+                                  <div className="text-xs text-muted-foreground mt-1 truncate">
+                                    {e.timeStart?<span className={cx(e.type==='training'&&'font-bold text-foreground')}>🕐 {e.timeStart}{e.timeEnd?'–'+e.timeEnd:''} Uhr</span>:<span>ganztägig</span>}
+                                    {e.location&&<span> &nbsp;·&nbsp; 📍 {e.location}</span>}
+                                  </div>
+                                  {e.notes&&<div className="text-xs text-muted-foreground/80 italic mt-0.5 truncate">{e.notes}</div>}
+                                </div>
+                                <span className="text-[10px] font-bold uppercase text-white px-2 py-1 rounded-full shrink-0 hidden sm:inline" style={{background:t.hex}}>{t.kurz}</span>
+                                {canEdit&&<div className="flex items-center gap-0.5 shrink-0">
+                                  <button onClick={()=>openEdit(e)} aria-label="Bearbeiten" className="hover:text-primary hover:bg-accent cursor-pointer w-8 h-8 flex items-center justify-center rounded-lg transition-colors">✎</button>
+                                  <DelBtn onDelete={()=>onChange(list.filter(x=>x.id!==e.id))}/>
+                                </div>}
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </Card>
+                    );
+                  })}
+                </div>
+              </div>
+            ))
+          }
+        </div>
+      )}
+
+      {/* Nächste Termine (nur Monatsansicht) */}
+      {view==='monat'&&upcoming.length>0&&(
+        <Card className="p-4">
+          <h3 className="text-sm font-semibold mb-3">Nächste Termine</h3>
+          <div className="space-y-1.5">
+            {upcoming.slice(0,5).map(e=>{const t=tTyp(e.type);return(
+              <button key={e.id} onClick={canEdit?()=>openEdit(e):undefined} className={cx('w-full flex items-center gap-3 text-left rounded-lg px-2 py-1.5 transition-colors',canEdit&&'hover:bg-accent/50 cursor-pointer')}>
+                <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{background:t.hex}}/>
+                <span className="text-xs font-semibold text-muted-foreground w-20 shrink-0">{fmtShort(e.date)} {e.timeStart||''}</span>
+                <span className="text-sm flex-1 truncate"><TypIcon t={t} className="h-[1.05em] w-[1.05em]"/> {terminTitel(e)}</span>
+                {e.location&&<span className="text-xs text-muted-foreground truncate hidden sm:block">📍 {e.location}</span>}
+              </button>
+            );})}
+          </div>
+        </Card>
+      )}
+
+      {canEdit&&<Modal open={modal} onClose={()=>{setModal(false);setEditing(null);}} title={editing&&editing.id?'Termin bearbeiten':'Neuer Termin'} wide>
+        <TerminForm termin={editing} onSave={save} onClose={()=>{setModal(false);setEditing(null);}} onDelete={()=>{if(editing&&editing.id)onChange(list.filter(x=>x.id!==editing.id));setModal(false);setEditing(null);}}/>
+      </Modal>}
+      {exportOpen&&<ExportModal events={filtered} geburtstage={geburtstage} onClose={()=>setExportOpen(false)}/>}
+    </div>
+  );
+}
+
+// ─── TRAINING / ANWESENHEIT ───────────────────────────────────────────────────
+const ANW_GRUENDE=['Krank','Verletzt','Urlaub','Arbeit/Schule','Entschuldigt','Unentschuldigt','Sonstiges'];
+const GRUND_FARBE={'Krank':'#f59e0b','Verletzt':'#dc2626','Urlaub':'#3b82f6','Arbeit/Schule':'#8b5cf6','Entschuldigt':'#64748b','Unentschuldigt':'#111827','Sonstiges':'#94a3b8','Ohne Angabe':'#cbd5e1'};
+function attStats(playerId,events,anwMap){
+  // Default: anwesend. Nur explizit als abwesend (p===false) markierte Eintraege zaehlen als gefehlt.
+  let present=0,absent=0;const reasons={};
+  (events||[]).forEach(ev=>{const rec=anwMap&&anwMap[ev.id];const e=rec&&rec.entries&&rec.entries[playerId];
+    if(e&&e.p===false){absent++;const r=e.reason||'Ohne Angabe';reasons[r]=(reasons[r]||0)+1;}
+    else present++;});
+  return {present,absent,total:present+absent,reasons};
+}
+function Donut({present,absent,size=148}){
+  const ref=useRef(null),inst=useRef(null);
+  useEffect(()=>{
+    if(!ref.current||typeof Chart==='undefined')return;
+    if(inst.current){inst.current.destroy();inst.current=null;}
+    const total=present+absent;
+    inst.current=new Chart(ref.current,{type:'doughnut',
+      data:{labels:['Anwesend','Abwesend'],datasets:[{data:total?[present,absent]:[1,0],backgroundColor:total?['#16a34a','#dc2626']:['#e5e7eb','#e5e7eb'],borderWidth:0}]},
+      options:{responsive:false,cutout:'70%',plugins:{legend:{display:false},tooltip:{enabled:total>0}}}});
+    return()=>{if(inst.current){inst.current.destroy();inst.current=null;}};
+  },[present,absent]);
+  const total=present+absent,quote=total?Math.round(present/total*100):null;
+  return(
+    <div className="relative shrink-0" style={{width:size,height:size}}>
+      <canvas ref={ref} width={size} height={size}/>
+      <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+        <span className="text-2xl font-extrabold leading-none">{quote==null?'–':quote+'%'}</span>
+        <span className="text-[10px] text-muted-foreground font-medium mt-0.5">anwesend</span>
+      </div>
+    </div>
+  );
+}
+function PlayerProfile({player,events,anwMap,talks,onAddTalk,onDeleteTalk,onClose}){
+  const st=attStats(player.id,events,anwMap);
+  const history=useMemo(()=>[...(events||[])].sort((a,b)=>(b.date||'').localeCompare(a.date||'')),[events]);
+  const [gDate,setGDate]=useState(isoOf(new Date()));
+  const [gText,setGText]=useState('');
+  const speichernGespraech=()=>{if(!gText.trim()||!onAddTalk)return;onAddTalk(player.id,gDate,gText.trim());setGText('');setGDate(isoOf(new Date()));};
+  const lastTs=(talks&&talks[0])?tageSeit(talks[0].date):null;
+  return(
+    <Modal open onClose={onClose} title={player.name||'Spieler'} wide>
+      <div className="space-y-5">
+        <div className="flex flex-col sm:flex-row items-center gap-5">
+          <Donut present={st.present} absent={st.absent}/>
+          <div className="flex-1 w-full grid grid-cols-3 gap-2 text-center">
+            <div className="rounded-xl bg-emerald-50 p-3"><div className="text-xl font-bold text-emerald-700">{st.present}</div><div className="text-[11px] text-emerald-700/80 font-medium">Anwesend</div></div>
+            <div className="rounded-xl bg-red-50 p-3"><div className="text-xl font-bold text-red-700">{st.absent}</div><div className="text-[11px] text-red-700/80 font-medium">Gefehlt</div></div>
+            <div className="rounded-xl bg-muted p-3"><div className="text-xl font-bold">{st.total}</div><div className="text-[11px] text-muted-foreground font-medium">Trainings</div></div>
+          </div>
+        </div>
+        {Object.keys(st.reasons).length>0&&(
+          <div>
+            <h4 className="text-xs font-bold uppercase tracking-wider text-muted-foreground mb-2">Fehlgründe</h4>
+            <div className="flex flex-wrap gap-2">
+              {Object.entries(st.reasons).sort((a,b)=>b[1]-a[1]).map(([r,n])=>(
+                <span key={r} className="inline-flex items-center gap-1.5 text-xs font-medium px-2.5 py-1 rounded-full" style={{background:(GRUND_FARBE[r]||'#94a3b8')+'1f',color:GRUND_FARBE[r]||'#475569'}}><span className="w-1.5 h-1.5 rounded-full" style={{background:GRUND_FARBE[r]||'#94a3b8'}}/>{r}: {n}×</span>
+              ))}
+            </div>
+          </div>
+        )}
+        <div>
+          <div className="flex items-center justify-between mb-2">
+            <h4 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Einzelgespräche</h4>
+            <span className="text-[11px] font-semibold" style={{color:gespraechFarbe(lastTs)}}>Letztes: {seitText(lastTs)}</span>
+          </div>
+          <div className="rounded-xl border border-border p-3 space-y-2 mb-3 bg-muted/20">
+            <div className="flex items-center gap-2">
+              <input type="date" value={gDate} max={isoOf(new Date())} onChange={e=>setGDate(e.target.value)} className="rounded-md border border-border bg-background px-2.5 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary/40"/>
+              <span className="text-xs text-muted-foreground">Datum des Gesprächs</span>
+            </div>
+            <textarea value={gText} onChange={e=>setGText(e.target.value)} rows={2} placeholder="Was wurde besprochen? (Themen, Vereinbarungen, Stimmung …)" className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-primary/40"/>
+            <div className="flex justify-end">
+              <Btn onClick={speichernGespraech} disabled={!gText.trim()}>+ Gespräch speichern</Btn>
+            </div>
+          </div>
+          {(talks||[]).length===0
+            ?<p className="text-sm text-muted-foreground mb-5">Noch kein Gespräch dokumentiert.</p>
+            :<div className="space-y-2 max-h-64 overflow-y-auto pr-1 mb-5">
+              {(talks||[]).map(t=>(
+                <div key={t.id} className="rounded-lg border border-border p-3">
+                  <div className="flex items-center justify-between gap-2 mb-1">
+                    <span className="text-xs font-bold text-foreground">{fmtDatumLang(t.date)}</span>
+                    {onDeleteTalk&&<DelBtn onDelete={()=>onDeleteTalk(t.id)}/>}
+                  </div>
+                  <p className="text-sm whitespace-pre-wrap text-foreground/90">{t.text}</p>
+                </div>
+              ))}
+            </div>}
+        </div>
+        <div>
+          <h4 className="text-xs font-bold uppercase tracking-wider text-muted-foreground mb-2">Trainings-Verlauf</h4>
+          {history.length===0
+            ?<p className="text-sm text-muted-foreground">Noch keine Trainings im Kalender (bis heute).</p>
+            :<div className="space-y-1.5 max-h-72 overflow-y-auto pr-1">
+              {history.map(ev=>{const rec=anwMap&&anwMap[ev.id];const e=rec&&rec.entries&&rec.entries[player.id];const fehlt=e&&e.p===false;return(
+                <div key={ev.id} className="flex items-center gap-3 rounded-lg border border-border px-3 py-2">
+                  <span className="text-sm font-semibold w-20 shrink-0">{fmtShort(ev.date)}</span>
+                  {!fehlt
+                    ?<span className="inline-flex items-center gap-1.5 text-xs font-semibold text-emerald-700"><span className="w-2 h-2 rounded-full bg-emerald-500"/>Anwesend</span>
+                    :<span className="inline-flex items-center gap-1.5 text-xs font-semibold text-red-700"><span className="w-2 h-2 rounded-full bg-red-500"/>Gefehlt{e.reason?' · '+e.reason:''}</span>}
+                  <span className="text-xs text-muted-foreground truncate ml-auto">{terminTitel(ev)}</span>
+                </div>
+              );})}
+            </div>}
+        </div>
+      </div>
+    </Modal>
+  );
+}
+function EventAttForm({event,roster,record,onSave,onClose}){
+  const t=tTyp(event.type);
+  const zaehlt=event.type==='training';
+  const [entries,setEntries]=useState(()=>{const b={};(roster||[]).forEach(p=>{const e=record&&record.entries&&record.entries[p.id];b[p.id]=e&&e.p===false?{p:false,reason:e.reason||''}:{p:true,reason:''};});return b;});
+  const setE=(pid,patch)=>setEntries(prev=>({...prev,[pid]:{...(prev[pid]||{p:true,reason:''}),...patch}}));
+  const allDa=()=>{const b={};(roster||[]).forEach(p=>b[p.id]={p:true,reason:''});setEntries(b);};
+  const anwesend=(roster||[]).filter(p=>entries[p.id]&&entries[p.id].p).length;
+  const submit=()=>{onSave(event.id,entries);};
+  return(
+    <div className="space-y-4">
+      <div className="flex items-center gap-3 rounded-xl border border-border p-3" style={{background:t.hex+'12'}}>
+        <TypIcon t={t} className="text-xl h-[1.1em] w-[1.1em] shrink-0"/>
+        <div className="flex-1 min-w-0">
+          <div className="font-semibold text-sm truncate">{terminTitel(event)}</div>
+          <div className="text-xs text-muted-foreground truncate">{fmtDatumLang(event.date)}{event.timeStart?' · '+event.timeStart+' Uhr':''}</div>
+        </div>
+        <span className={cx('text-[10px] font-bold uppercase px-2 py-1 rounded-full shrink-0',zaehlt?'text-white':'bg-muted text-muted-foreground')} style={zaehlt?{background:t.hex}:undefined}>{zaehlt?'zählt zur Quote':'zählt nicht'}</span>
+      </div>
+      <div className="flex items-center justify-between">
+        <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Anwesend ({anwesend}/{(roster||[]).length})</span>
+        <button onClick={allDa} className="text-[11px] text-primary hover:underline cursor-pointer font-medium">↺ Alle anwesend</button>
+      </div>
+      <div className="space-y-1.5 max-h-[46vh] overflow-y-auto pr-1 -mr-1">
+        {(roster||[]).map(p=>{const e=entries[p.id]||{p:true,reason:''};return(
+          <div key={p.id} className="rounded-xl border border-border p-2.5">
+            <div className="flex items-center gap-2">
+              <div className="flex-1 min-w-0"><div className="text-sm font-semibold truncate">{p.name||'–'}</div>{p.position&&<div className="text-[11px] text-muted-foreground truncate">{p.position}</div>}</div>
+              <div className="flex rounded-lg overflow-hidden border border-border shrink-0">
+                <button onClick={()=>setE(p.id,{p:true,reason:''})} className={cx('px-3 py-1.5 text-xs font-semibold cursor-pointer transition-colors',e.p?'bg-emerald-600 text-white':'bg-card text-muted-foreground hover:bg-accent')}>✓ Da</button>
+                <button onClick={()=>setE(p.id,{p:false})} className={cx('px-3 py-1.5 text-xs font-semibold cursor-pointer transition-colors border-l border-border',!e.p?'bg-red-600 text-white':'bg-card text-muted-foreground hover:bg-accent')}>✗ Fehlt</button>
+              </div>
+            </div>
+            {!e.p&&(
+              <div className="mt-2 flex flex-wrap gap-1.5">
+                {ANW_GRUENDE.map(g=>(
+                  <button key={g} onClick={()=>setE(p.id,{reason:g})} className={cx('px-2.5 py-1 rounded-full text-[11px] font-medium border cursor-pointer transition-colors',e.reason===g?'text-white border-transparent':'border-border bg-card hover:bg-accent text-muted-foreground')} style={e.reason===g?{background:GRUND_FARBE[g]||'#64748b'}:undefined}>{g}</button>
+                ))}
+              </div>
+            )}
+          </div>
+        );})}
+      </div>
+      <div className="flex items-center justify-end gap-2 pt-1">
+        <Btn variant="outline" onClick={onClose}>Abbrechen</Btn><Btn onClick={submit}>Speichern</Btn>
+      </div>
+    </div>
+  );
+}
+// ─── EINZELGESPRÄCHE ──────────────────────────────────────────────────────────
+const tageSeit=iso=>{if(!iso)return null;const d=new Date(iso+'T00:00:00');if(isNaN(d))return null;const n=new Date();const r=new Date(n.getFullYear(),n.getMonth(),n.getDate());return Math.round((r-d)/86400000);};
+const seitText=t=>t==null?'noch nie':t<=0?'heute':t===1?'gestern':t<7?('vor '+t+' Tagen'):t<14?'vor 1 Woche':t<56?('vor '+Math.floor(t/7)+' Wochen'):t<365?('vor '+Math.floor(t/30)+' Monaten'):'vor über 1 Jahr';
+// Farbe nach Aktualität des letzten Gesprächs: rot = noch nie / über 4 Wochen, gelb = 3–4 Wochen, grün = unter 3 Wochen
+const gespraechFarbe=t=>t==null?'#dc2626':t<21?'#16a34a':t<=28?'#f59e0b':'#dc2626';
+function TrainingPage({roster,anwesenheit,termine,onChange,gespraeche,onChangeGespraeche}){
+  const list=anwesenheit||[];
+  const todayIso=isoOf(new Date());
+  // U23 (Oberliga) ist nicht Teil der Trainings-Anwesenheit.
+  const players=useMemo(()=>(roster||[]).filter(p=>p.team!=='u23'),[roster]);
+  const [modal,setModal]=useState(false);
+  const [editEvent,setEditEvent]=useState(null);
+  const [profileId,setProfileId]=useState(null);
+  const [team,setTeam]=useState('all');
+  // Anwesenheits-Datensaetze liegen unter der Kalender-Termin-id (gespeichert werden NUR Abwesenheiten).
+  const anwMap=useMemo(()=>{const m={};list.forEach(r=>{if(r&&r.id)m[r.id]=r;});return m;},[list]);
+  // Termine aus dem Kalender (ohne "Frei"), bis einschliesslich heute – diese kann man bewerten.
+  const events=useMemo(()=>(termine||[]).filter(e=>e.date&&e.type!=='sonstiges'&&e.date<=todayIso).sort((a,b)=>(b.date+(b.timeStart||'')).localeCompare(a.date+(a.timeStart||''))),[termine,todayIso]);
+  // Quote/Donut: ausschliesslich Trainings.
+  const countingEvents=useMemo(()=>events.filter(e=>e.type==='training'),[events]);
+  const teams=useMemo(()=>{const s=new Set(players.map(p=>p.team).filter(Boolean));return [...s];},[players]);
+  const shown=useMemo(()=>{const l=team==='all'?players:players.filter(p=>p.team===team);return [...l].sort((a,b)=>(a.team||'').localeCompare(b.team||'')||(a.name||'').localeCompare(b.name||''));},[players,team]);
+  const teamTot=useMemo(()=>{let p=0,a=0;countingEvents.forEach(ev=>{const rec=anwMap[ev.id];players.forEach(pl=>{const e=rec&&rec.entries&&rec.entries[pl.id];if(e&&e.p===false)a++;else p++;});});return {p,a};},[countingEvents,anwMap,players]);
+  const profile=profileId?players.find(p=>p.id===profileId):null;
+  // Speichern: nur Abwesenheiten ablegen; ist alles anwesend -> Datensatz entfernen (haelt die Daten schlank).
+  const saveAtt=(eventId,entries)=>{const abs={};Object.entries(entries||{}).forEach(([pid,e])=>{if(e&&e.p===false)abs[pid]={p:false,reason:e.reason||''};});const rest=list.filter(r=>r.id!==eventId);onChange(Object.keys(abs).length?[...rest,{id:eventId,entries:abs}]:rest);setModal(false);setEditEvent(null);};
+  const openEvent=ev=>{setEditEvent(ev);setModal(true);};
+  // Einzelgespräche: flache Liste {id,playerId,date,text} -> pro Spieler nach Datum (neueste zuerst) gruppieren.
+  const talkMap=useMemo(()=>{const m={};(gespraeche||[]).forEach(t=>{if(t&&t.playerId)(m[t.playerId]=m[t.playerId]||[]).push(t);});Object.keys(m).forEach(k=>m[k].sort((a,b)=>(b.date||'').localeCompare(a.date||'')));return m;},[gespraeche]);
+  const addTalk=(playerId,date,text)=>{onChangeGespraeche&&onChangeGespraeche([...(gespraeche||[]),{id:uid(),playerId,date:date||todayIso,text:text||''}]);};
+  const delTalk=id=>{onChangeGespraeche&&onChangeGespraeche((gespraeche||[]).filter(t=>t.id!==id));};
+
+  if(players.length===0)return(
+    <div className="p-4 md:p-6">
+      <div className="flex items-center gap-3.5 mb-5">
+        <div className="w-12 h-12 rounded-2xl bg-white flex items-center justify-center shadow-soft ring-1 ring-border/70 shrink-0 overflow-hidden"><LogoMark className="w-9 h-9 object-contain"/></div>
+        <div><h1 className="text-2xl font-bold tracking-tight">Kader</h1><p className="text-sm text-muted-foreground">Anwesenheit im Training</p></div>
+      </div>
+      <Card className="p-8 text-center">
+        <div className="text-4xl mb-3 opacity-30">⚽</div>
+        <p className="text-sm text-muted-foreground max-w-md mx-auto">Der Kader ist noch nicht verfügbar. Sobald der Admin die App einmal geöffnet hat (überträgt den Kader) und die Firestore-Regeln aktualisiert sind, erscheinen hier die Spieler.</p>
+      </Card>
+    </div>
+  );
+
+  return(
+    <div className="p-4 md:p-6 space-y-5">
+      <div className="flex items-center gap-3.5">
+        <div className="w-12 h-12 rounded-2xl bg-white flex items-center justify-center shadow-soft ring-1 ring-border/70 shrink-0 overflow-hidden"><LogoMark className="w-9 h-9 object-contain"/></div>
+        <div><h1 className="text-2xl font-bold tracking-tight">Kader</h1><p className="text-sm text-muted-foreground">{players.length} Spieler · {countingEvents.length} Trainings gewertet</p></div>
+      </div>
+
+      <Card className="p-5 flex flex-col sm:flex-row items-center gap-6">
+        <Donut present={teamTot.p} absent={teamTot.a}/>
+        <div className="flex-1 w-full">
+          <h3 className="text-sm font-semibold mb-1">Trainingsbeteiligung gesamt</h3>
+          <p className="text-[11px] text-muted-foreground mb-3">Nur Trainings zählen – Spiele, Teamabende &amp; Co. fließen nicht ein.</p>
+          <div className="grid grid-cols-3 gap-2 text-center">
+            <div className="rounded-xl bg-emerald-50 p-3"><div className="text-xl font-bold text-emerald-700">{teamTot.p}</div><div className="text-[11px] text-emerald-700/80 font-medium">Anwesend</div></div>
+            <div className="rounded-xl bg-red-50 p-3"><div className="text-xl font-bold text-red-700">{teamTot.a}</div><div className="text-[11px] text-red-700/80 font-medium">Gefehlt</div></div>
+            <div className="rounded-xl bg-muted p-3"><div className="text-xl font-bold">{countingEvents.length}</div><div className="text-[11px] text-muted-foreground font-medium">Trainings</div></div>
+          </div>
+        </div>
+      </Card>
+
+      {teams.length>1&&(
+        <div className="flex gap-2 flex-wrap">
+          <button onClick={()=>setTeam('all')} className={cx('px-3 py-1.5 rounded-full text-xs font-semibold border cursor-pointer transition-all',team==='all'?'bg-foreground text-background border-transparent':'border-border bg-card hover:bg-accent text-muted-foreground')}>Alle ({players.length})</button>
+          {teams.map(t=>(<button key={t} onClick={()=>setTeam(t)} className={cx('px-3 py-1.5 rounded-full text-xs font-semibold border cursor-pointer transition-all',team===t?'bg-foreground text-background border-transparent':'border-border bg-card hover:bg-accent text-muted-foreground')}>{TEAM_LBL[t]||t} ({players.filter(p=>p.team===t).length})</button>))}
+        </div>
+      )}
+
+      <Card>
+        <div className="flex items-center gap-3 px-4 py-2 border-b border-border bg-muted/30 text-[10px] font-bold uppercase tracking-wider text-muted-foreground/70">
+          <div className="flex-1 min-w-0">Spieler</div>
+          <div className="w-28 shrink-0 hidden sm:block text-center">Anwesenheit</div>
+          <div className="w-12 sm:w-14 text-right shrink-0">Quote</div>
+          <div className="w-[84px] sm:w-28 text-right shrink-0">💬 Gespräch</div>
+          <span className="w-2 shrink-0"/>
+        </div>
+        <div className="divide-y divide-border">
+          {shown.map(p=>{const st=attStats(p.id,countingEvents,anwMap);const q=st.total?Math.round(st.present/st.total*100):null;const talks=talkMap[p.id]||[];const last=talks[0];const ts=last?tageSeit(last.date):null;return(
+            <button key={p.id} onClick={()=>setProfileId(p.id)} className="w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-accent/40 transition-colors cursor-pointer">
+              <div className="flex-1 min-w-0">
+                <div className="font-semibold text-sm truncate">{p.name||'–'}</div>
+                <div className="text-[11px] text-muted-foreground truncate">{p.position||'—'}{p.team?' · '+(TEAM_LBL[p.team]||p.team):''}</div>
+              </div>
+              <div className="w-28 shrink-0 hidden sm:block">
+                <div className="h-2 rounded-full bg-muted overflow-hidden"><div className="h-full rounded-full" style={{width:(q||0)+'%',background:q==null?'#cbd5e1':q>=75?'#16a34a':q>=50?'#f59e0b':'#dc2626'}}/></div>
+              </div>
+              <div className="w-12 sm:w-14 text-right shrink-0"><span className="text-sm font-bold">{q==null?'–':q+'%'}</span></div>
+              <div className="w-[84px] sm:w-28 text-right shrink-0">
+                <span className="inline-flex items-center gap-1 text-[11px] font-semibold whitespace-nowrap" style={{color:gespraechFarbe(ts)}}>
+                  <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{background:gespraechFarbe(ts)}}/>{seitText(ts)}
+                </span>
+              </div>
+              <span className="text-muted-foreground shrink-0">›</span>
+            </button>
+          );})}
+        </div>
+      </Card>
+
+      <div>
+        <h3 className="text-xs font-bold uppercase tracking-wider text-muted-foreground mb-2.5 px-1">Termine aus dem Kalender</h3>
+        {events.length===0
+          ?<Card className="p-6 text-center"><p className="text-sm text-muted-foreground">Noch keine vergangenen Termine. Lege im <strong>Kalender</strong> Termine an – sie erscheinen hier automatisch zum Abhaken.</p></Card>
+          :<div className="space-y-2">
+            {events.map(ev=>{const t=tTyp(ev.type);const zaehlt=ev.type==='training';const rec=anwMap[ev.id];const absent=rec?Object.values(rec.entries||{}).filter(e=>e&&e.p===false).length:0;const pres=players.length-absent;const dd=new Date(ev.date+'T00:00:00');return(
+              <Card key={ev.id} className="p-3 flex items-center gap-3.5 hover:shadow-card transition-all cursor-pointer" onClick={()=>openEvent(ev)}>
+                <div className="w-12 shrink-0 flex flex-col items-center justify-center rounded-xl py-1.5" style={{background:t.hex+'1a'}}>
+                  <div className="text-lg font-extrabold leading-none" style={{color:t.hex}}>{String(dd.getDate()).padStart(2,'0')}</div>
+                  <div className="text-[10px] uppercase font-semibold mt-0.5" style={{color:t.hex}}>{WTAGE[(dd.getDay()+6)%7]}</div>
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="text-sm font-semibold truncate flex items-center gap-1.5"><TypIcon t={t} className="h-[1.1em] w-[1.1em] shrink-0"/><span className="truncate">{terminTitel(ev)}</span></div>
+                  <div className="text-xs text-muted-foreground truncate">{pres}/{players.length} anwesend{absent>0?' · '+absent+' fehlt':''}</div>
+                </div>
+                {zaehlt
+                  ?<span className="text-[10px] font-bold uppercase text-white px-2 py-1 rounded-full shrink-0 hidden sm:inline" style={{background:t.hex}}>Training</span>
+                  :<span className="text-[10px] font-bold uppercase text-muted-foreground bg-muted px-2 py-1 rounded-full shrink-0 hidden sm:inline">zählt nicht</span>}
+                <span className="text-muted-foreground shrink-0">✎</span>
+              </Card>
+            );})}
+          </div>}
+      </div>
+
+      <Modal open={modal} onClose={()=>{setModal(false);setEditEvent(null);}} title="Anwesenheit" wide>
+        {editEvent&&<EventAttForm event={editEvent} roster={players} record={anwMap[editEvent.id]} onSave={saveAtt} onClose={()=>{setModal(false);setEditEvent(null);}}/>}
+      </Modal>
+      {profile&&<PlayerProfile player={profile} events={countingEvents} anwMap={anwMap} talks={talkMap[profile.id]||[]} onAddTalk={addTalk} onDeleteTalk={delTalk} onClose={()=>setProfileId(null)}/>}
+    </div>
+  );
+}
+
+// ─── LOGIN SCREEN ─────────────────────────────────────────────────────────────
+const ROLE_ICON={admin:'🛡️',trainer:'📋',spieler:'⚽'};
+function LoginScreen(){
+  const [selRole,setSelRole]=useState('admin');
+  const [pw,setPw]=useState('');
+  const [err,setErr]=useState('');
+  const [loading,setLoading]=useState(false);
+  const [show,setShow]=useState(false);
+
+  const submit=async e=>{
+    e.preventDefault();
+    setErr('');setLoading(true);
+    try{
+      await auth.setPersistence(firebase.auth.Auth.Persistence.SESSION);
+      await auth.signInWithEmailAndPassword(AUTH_EMAIL[selRole],pw);
+      // Erfolg → onAuthStateChanged in Root übernimmt
+    }catch(ex){
+      const c=ex&&ex.code||'';
+      if(c==='auth/wrong-password'||c==='auth/invalid-credential'||c==='auth/invalid-login-credentials')setErr('Falsches Passwort für '+ROLLE_LBL[selRole]+'.');
+      else if(c==='auth/user-not-found')setErr('Für diese Rolle wurde noch kein Zugang angelegt.');
+      else if(c==='auth/too-many-requests')setErr('Zu viele Versuche. Bitte später erneut versuchen.');
+      else if(c==='auth/operation-not-allowed'||c==='auth/configuration-not-found')setErr('Anmeldung (E-Mail/Passwort) ist in Firebase noch nicht aktiviert.');
+      else if(c==='auth/network-request-failed')setErr('Keine Verbindung. Internet prüfen.');
+      else setErr('Anmeldung fehlgeschlagen.'+(c?' ('+c+')':''));
+      setPw('');setLoading(false);
+    }
+  };
+
+  return(
+    <div className="min-h-screen bg-background flex flex-col items-center justify-center p-4 relative overflow-hidden">
+      <div className="pointer-events-none absolute inset-0" style={{background:'radial-gradient(55% 45% at 50% -5%, hsl(202 84% 45% / 0.10), transparent 70%)'}}/>
+      <div className="w-full max-w-[400px] relative">
+        <div className="flex flex-col items-center mb-7">
+          <div className="w-[72px] h-[72px] rounded-2xl bg-white flex items-center justify-center mb-4 shadow-card ring-1 ring-border/70 overflow-hidden"><LogoMark className="w-14 h-14 object-contain"/></div>
+          <h1 className="text-[22px] font-bold tracking-tight">FK Bregalnica Štip</h1>
+          <p className="text-sm text-muted-foreground mt-1">Budget &amp; Organisation · Saison 2026/27</p>
+        </div>
+        <div className="rounded-2xl border border-border bg-card shadow-card p-6 sm:p-7">
+          <form onSubmit={submit} className="space-y-5">
+            {VALID_ROLES.length>1&&<div className="space-y-2">
+              <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Anmelden als</label>
+              <div className="grid grid-cols-3 gap-2">
+                {VALID_ROLES.map(r=>{const active=selRole===r;return(
+                  <button key={r} type="button" onClick={()=>{setSelRole(r);setErr('');}} className={cx('relative flex flex-col items-center gap-1.5 py-3 rounded-xl border text-xs font-semibold transition-all cursor-pointer',active?'border-primary/40 bg-primary/[0.06] text-primary shadow-soft':'border-border bg-background hover:bg-accent text-muted-foreground')}>
+                    <span className={cx('text-xl transition-transform duration-200',active&&'scale-110')}>{ROLE_ICON[r]}</span>{ROLLE_LBL[r]}
+                    {active&&<span className="absolute top-1.5 right-1.5 w-1.5 h-1.5 rounded-full bg-primary"/>}
+                  </button>
+                );})}
+              </div>
+            </div>}
+            <div className="space-y-2">
+              <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Passwort</label>
+              <div className="relative">
+                <input
+                  type={show?'text':'password'}
+                  value={pw}
+                  onChange={e=>{setPw(e.target.value);setErr('');}}
+                  placeholder="Passwort eingeben"
+                  autoFocus
+                  className={cx('w-full rounded-xl border bg-background px-3.5 py-3 text-sm pr-11 transition-shadow focus:outline-none focus:ring-4 focus:ring-primary/10 focus:border-primary/40',err?'border-red-400':'border-border')}
+                />
+                <button type="button" onClick={()=>setShow(s=>!s)} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground text-base cursor-pointer transition-colors">
+                  {show?'🙈':'👁'}
+                </button>
+              </div>
+              {err&&<p className="flex items-center gap-1.5 text-xs text-red-600 font-medium"><span>⚠️</span>{err}</p>}
+            </div>
+            <button type="submit" disabled={!pw||loading} className="w-full inline-flex items-center justify-center gap-2 bg-primary text-primary-foreground rounded-xl py-3 text-sm font-semibold shadow-soft hover:brightness-110 active:brightness-95 transition-all disabled:opacity-40 cursor-pointer disabled:cursor-not-allowed">
+              {loading&&<span className="w-4 h-4 rounded-full border-2 border-white/40 border-t-white animate-spin"/>}
+              {loading?'Anmelden…':'Anmelden'}
+            </button>
+          </form>
+        </div>
+        <p className="text-center text-xs text-muted-foreground mt-6">🔒 Geschützter Admin-Zugang</p>
+      </div>
+    </div>
+  );
+}
+
+// ─── APP ──────────────────────────────────────────────────────────────────────
+const NAV=[
+  {id:'uebersicht',label:'Übersicht',icon:'⊞'},
+  {id:'kader',label:'Kader',icon:'⚽'},
+  {id:'staff',label:'Staff',icon:'👤'},
+  {id:'kosten',label:'Kostenstellen',icon:'📋'},
+  {id:'einnahmen',label:'Einnahmen',icon:'💰'},
+  {id:'liquiditaet',label:'Liquidität',icon:'📈'},
+  {id:'wohnungen',label:'Wohnungen',icon:'🏠'},
+  {id:'termine',label:'Kalender',icon:'📅'},
+];
+
+function App({role,onLogout}){
+  const isAdmin=role==='admin';
+  const canEditTermine=role==='admin'||role==='trainer';
+  const canTraining=role==='admin'||role==='trainer';
+  const navItems=[...NAV,{id:'training',label:'Anwesenheit',icon:'📝'}];
+  const allowedPages=navItems.map(n=>n.id);
+  const [page,setPage]=useState(isAdmin?'uebersicht':'termine');
+  const [players,setPlayers]=useState([]);
+  const [staff,setStaff]=useState([]);
+  const [costs,setCosts]=useState([]);
+  const [income,setIncome]=useState([]);
+  const [spielplan,setSpielplan]=useState(DEFAULT_SP);
+  const [wohnungen,setWohnungen]=useState([]);
+  const [termine,setTermine]=useState([]);
+  const [kader,setKader]=useState([]);
+  const [anwesenheit,setAnwesenheit]=useState([]);
+  const [gespraeche,setGespraeche]=useState([]);
+  const [dark,setDark]=useState(()=>load(K.th,false));
+  const [dbLoading,setDbLoading]=useState(true);
+  const [dbError,setDbError]=useState(null);
+  // syncRef holds the last value received FROM Firestore (stringified) to avoid write-back loops.
+  // Pre-filled with defaults so the initial render never overwrites Firestore before data has loaded.
+  const syncRef=useRef({
+    players:JSON.stringify([]),
+    staff:JSON.stringify([]),
+    costs:JSON.stringify([]),
+    income:JSON.stringify([]),
+    spielplan:JSON.stringify(DEFAULT_SP),
+    wohnungen:JSON.stringify([]),
+    termine:JSON.stringify([]),
+    kader:JSON.stringify([]),
+    anwesenheit:JSON.stringify([]),
+    gespraeche:JSON.stringify([]),
+  });
+
+  useEffect(()=>{document.documentElement.classList.toggle('dark',dark);save(K.th,dark);},[dark]);
+
+  // ── Firestore real-time listeners (rollenabhängig) ──────────────────────────
+  // Admin lädt alle Daten; Trainer/Spieler laden NUR den Kalender (termine).
+  // Die Budgetdaten werden für Nicht-Admins gar nicht erst angefragt.
+  useEffect(()=>{
+    const unsub=[];
+    // [doc, setter, default, optional?]  – optional-Docs lösen bei Fehler KEINEN App-Fehler aus
+    const jobs=isAdmin
+      ? [['players',setPlayers,[]],['staff',setStaff,[]],['costs',setCosts,[]],['income',setIncome,[]],['spielplan',setSpielplan,DEFAULT_SP],['wohnungen',setWohnungen,[]],['termine',setTermine,[]],['anwesenheit',setAnwesenheit,[],true],['gespraeche',setGespraeche,[],true]]
+      : role==='trainer'
+        ? [['termine',setTermine,[]],['kader',setKader,[],true],['anwesenheit',setAnwesenheit,[],true],['gespraeche',setGespraeche,[],true]]
+        : [['termine',setTermine,[]],['kader',setKader,[],true]];
+    let pending=jobs.length;
+    const done=()=>{pending--;if(pending<=0)setDbLoading(false);};
+    const listen=(doc,setter,dflt,optional)=>{
+      const u=db.collection(COL).doc(doc).onSnapshot(snap=>{
+        const data=(snap.exists&&snap.data()&&snap.data().data!==undefined)?snap.data().data:dflt;
+        syncRef.current[doc]=JSON.stringify(data);
+        setter(data);
+        done();
+      },err=>{console.error('Firestore',doc,err);if(!optional)setDbError(String(err));done();});
+      unsub.push(u);
+    };
+    jobs.forEach(([doc,setter,dflt,optional])=>listen(doc,setter,dflt,optional));
+    return()=>unsub.forEach(u=>u());
+  },[]);
+
+  // ── Save to Firestore (skip if value came from Firestore to avoid loops) ──
+  // Budget-Schreibzugriffe nur für Admin, Kalender-Schreibzugriffe nur für Admin/Trainer.
+  useEffect(()=>{if(!isAdmin)return;const s=JSON.stringify(players);if(syncRef.current.players===s)return;syncRef.current.players=s;fsSet('players',players);},[players]);
+  useEffect(()=>{if(!isAdmin)return;const s=JSON.stringify(staff);if(syncRef.current.staff===s)return;syncRef.current.staff=s;fsSet('staff',staff);},[staff]);
+  useEffect(()=>{if(!isAdmin)return;const s=JSON.stringify(costs);if(syncRef.current.costs===s)return;syncRef.current.costs=s;fsSet('costs',costs);},[costs]);
+  useEffect(()=>{if(!isAdmin)return;const s=JSON.stringify(income);if(syncRef.current.income===s)return;syncRef.current.income=s;fsSet('income',income);},[income]);
+  useEffect(()=>{if(!isAdmin)return;const s=JSON.stringify(spielplan);if(syncRef.current.spielplan===s)return;syncRef.current.spielplan=s;fsSet('spielplan',spielplan);},[spielplan]);
+  useEffect(()=>{if(!isAdmin)return;const s=JSON.stringify(wohnungen);if(syncRef.current.wohnungen===s)return;syncRef.current.wohnungen=s;fsSet('wohnungen',wohnungen);},[wohnungen]);
+  useEffect(()=>{if(!canEditTermine)return;const s=JSON.stringify(termine);if(syncRef.current.termine===s)return;syncRef.current.termine=s;fsSet('termine',termine);},[termine]);
+  // Kader-Spiegel: Admin schreibt NUR Name/Position/Team (keine Gehälter!) nach 'kader' – für den Trainer lesbar.
+  useEffect(()=>{if(!isAdmin)return;const mirror=(players||[]).map(p=>({id:p.id,name:p.name,position:p.position,team:p.team,geburtstag:p.geburtstag||''}));const s=JSON.stringify(mirror);if(syncRef.current.kader===s)return;syncRef.current.kader=s;fsSet('kader',mirror);},[players]);
+  // Anwesenheit: Admin + Trainer dürfen schreiben.
+  useEffect(()=>{if(!canTraining)return;const s=JSON.stringify(anwesenheit);if(syncRef.current.anwesenheit===s)return;syncRef.current.anwesenheit=s;fsSet('anwesenheit',anwesenheit);},[anwesenheit]);
+  useEffect(()=>{if(!canTraining)return;const s=JSON.stringify(gespraeche);if(syncRef.current.gespraeche===s)return;syncRef.current.gespraeche=s;fsSet('gespraeche',gespraeche);},[gespraeche]);
+
+  if(dbLoading)return(
+    <div className="flex items-center justify-center h-screen bg-background">
+      <div className="text-center space-y-3">
+        <div className="text-5xl animate-pulse">🔥</div>
+        <p className="text-muted-foreground text-sm font-medium">Daten werden geladen…</p>
+      </div>
+    </div>
+  );
+
+  if(dbError)return(
+    <div className="flex items-center justify-center h-screen bg-background">
+      <div className="text-center space-y-4 max-w-md px-4">
+        <div className="text-5xl">⚠️</div>
+        <h2 className="text-lg font-bold text-red-600">Datenbankfehler</h2>
+        <p className="text-sm text-muted-foreground">Daten konnten nicht geladen werden. Möglicherweise stimmen die Firestore-Sicherheitsregeln nicht mit den Konto-UIDs überein.</p>
+        <div className="text-xs bg-red-50 text-red-700 p-3 rounded-lg break-all">{dbError}</div>
+        <p className="text-xs text-muted-foreground">Firebase Console → Firestore → Regeln prüfen (UIDs der Konten).</p>
+        <div className="flex gap-2 justify-center">
+          <button onClick={()=>location.reload()} className="bg-primary text-primary-foreground px-4 py-2 rounded-md text-sm font-medium cursor-pointer hover:opacity-90">Neu laden</button>
+          <button onClick={()=>auth.signOut()} className="border border-border px-4 py-2 rounded-md text-sm font-medium cursor-pointer hover:bg-accent">Abmelden</button>
+        </div>
+      </div>
+    </div>
+  );
+
+  const pages={
+    uebersicht:<OverviewPage players={players} staff={staff} costs={costs} income={income} spielplan={spielplan}/>,
+    kader:<KaderPage players={players} onChange={setPlayers}/>,
+    staff:<StaffPage staff={staff} onChange={setStaff}/>,
+    kosten:<KostenPage costs={costs} spielplan={spielplan} onChange={setCosts}/>,
+    einnahmen:<EinnahmenPage income={income} onChange={setIncome}/>,
+    liquiditaet:<LiquiditaetPage players={players} staff={staff} costs={costs} income={income} spielplan={spielplan} setSpielplan={setSpielplan}/>,
+    wohnungen:<WohnungenPage wohnungen={wohnungen} onChange={setWohnungen}/>,
+    termine:<TerminePage termine={termine} onChange={setTermine} canEdit={canEditTermine} geburtstage={isAdmin?[...(players||[]),...(staff||[]).map(s=>({...s,istStaff:true}))]:(kader||[])}/>,
+    training:<TrainingPage roster={isAdmin?players:kader} anwesenheit={anwesenheit} termine={termine} onChange={setAnwesenheit} gespraeche={gespraeche} onChangeGespraeche={setGespraeche}/>,
+  };
+  const activePage=allowedPages.includes(page)?page:allowedPages[0];
+
+  return(
+    <div className="flex flex-col md:flex-row h-screen overflow-hidden bg-background">
+      {/* Desktop sidebar - hidden on mobile */}
+      <aside className="hidden md:flex w-56 shrink-0 bg-sidebar text-sidebar-foreground border-r border-sidebar-border flex-col">
+        <div className="p-4 border-b border-sidebar-border">
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 rounded-lg bg-white flex items-center justify-center flex-shrink-0 shadow-sm overflow-hidden"><LogoMark className="w-7 h-7 object-contain"/></div>
+            <div><div className="font-bold text-sm leading-tight">FK Bregalnica Štip</div><div className="text-xs opacity-70">Lübeck – {isAdmin?'Budget 26/27':'Terminkalender'}</div></div>
+          </div>
+        </div>
+        <nav className="flex-1 p-2 space-y-0.5 overflow-y-auto">
+          {navItems.map(n=>(
+            <button key={n.id} onClick={()=>setPage(n.id)} className={cx('w-full flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium transition-colors text-left cursor-pointer',activePage===n.id?'bg-sidebar-accent text-sidebar-accent-foreground':'text-sidebar-foreground/80 hover:bg-sidebar-accent/50 hover:text-sidebar-accent-foreground')}>
+              <span className="text-base w-5 text-center flex-shrink-0">{n.icon}</span>
+              <span>{n.label}</span>
+            </button>
+          ))}
+        </nav>
+        <div className="p-3 border-t border-sidebar-border space-y-0.5">
+          <div className="px-3 py-1.5 flex items-center gap-2 text-xs text-sidebar-foreground/60">
+            <span>{role==='admin'?'🛡️':role==='trainer'?'📋':'⚽'}</span><span>Angemeldet als <strong className="font-semibold text-sidebar-foreground/80">{ROLLE_LBL[role]}</strong></span>
+          </div>
+          <button onClick={()=>setDark(d=>!d)} className="w-full flex items-center gap-2 px-3 py-2 rounded-md text-sm text-sidebar-foreground/70 hover:bg-sidebar-accent/50 transition-colors cursor-pointer">
+            <span>{dark?'☀':'🌙'}</span><span>{dark?'Light Mode':'Dark Mode'}</span>
+          </button>
+          <button onClick={onLogout} className="w-full flex items-center gap-2 px-3 py-2 rounded-md text-sm text-sidebar-foreground/50 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground/80 transition-colors cursor-pointer">
+            <span>🔒</span><span>Abmelden</span>
+          </button>
+        </div>
+      </aside>
+
+      {/* Mobile top bar */}
+      <div className="md:hidden flex items-center justify-between px-4 py-3 bg-sidebar text-sidebar-foreground border-b border-sidebar-border shrink-0">
+        <div className="flex items-center gap-2">
+          <div className="w-7 h-7 rounded-lg bg-white flex items-center justify-center overflow-hidden shadow-sm"><LogoMark className="w-6 h-6 object-contain"/></div>
+          <span className="font-bold text-sm">FK Bregalnica Štip</span>
+          {!isAdmin&&<span className="text-[10px] font-medium bg-white/15 px-1.5 py-0.5 rounded-full">{ROLLE_LBL[role]}</span>}
+        </div>
+        <div className="flex items-center gap-1">
+          <button onClick={()=>setDark(d=>!d)} className="text-sidebar-foreground/70 cursor-pointer p-2">{dark?'☀':'🌙'}</button>
+          <button onClick={onLogout} className="text-sidebar-foreground/50 cursor-pointer p-2">🔒</button>
+        </div>
+      </div>
+
+      {/* Main content */}
+      <main className={cx('flex-1 overflow-y-auto',navItems.length>1?'pb-16 md:pb-0':'')}>{pages[activePage]}</main>
+
+      {/* Mobile bottom nav (nur wenn mehrere Bereiche) */}
+      {navItems.length>1&&(
+        <nav className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-sidebar border-t border-sidebar-border flex safe-area-pb">
+          {navItems.map(n=>(
+            <button key={n.id} onClick={()=>setPage(n.id)} className={cx('flex-1 flex flex-col items-center justify-center py-2 gap-0.5 transition-colors cursor-pointer',activePage===n.id?'text-white':'text-sidebar-foreground/50')}>
+              <span className="text-xl leading-none">{n.icon}</span>
+              <span className="text-[9px] leading-none font-medium">{n.label.substring(0,7)}</span>
+            </button>
+          ))}
+        </nav>
+      )}
+    </div>
+  );
+}
+
+function Root(){
+  const [authReady,setAuthReady]=useState(false);
+  const [role,setRole]=useState(null);
+  useEffect(()=>{
+    return auth.onAuthStateChanged(user=>{
+      const r=user?emailToRole(user.email):null;
+      if(user&&!r){ auth.signOut(); setRole(null); } // unbekanntes Konto → abmelden
+      else setRole(r);
+      setAuthReady(true);
+    });
+  },[]);
+  const logout=()=>auth.signOut();
+  if(!authReady)return(
+    <div className="flex items-center justify-center h-screen bg-background">
+      <div className="text-center space-y-3">
+        <div className="w-16 h-16 rounded-2xl bg-white flex items-center justify-center mx-auto shadow-lg overflow-hidden"><LogoMark className="w-12 h-12 object-contain"/></div>
+        <p className="text-muted-foreground text-sm font-medium">Lade…</p>
+      </div>
+    </div>
+  );
+  if(!role)return<LoginScreen/>;
+  return<App key={role} role={role} onLogout={logout}/>;
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(<ErrorBoundary><Root/></ErrorBoundary>);
+</script>
+</body>
+</html>

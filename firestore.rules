@@ -1,0 +1,19 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // UID des Admin-Kontos hier eintragen (Firebase → Authentication → Users).
+    // Doppelklick auf die UID kopiert sie. Anführungszeichen behalten!
+    function isAdmin() { return request.auth != null && request.auth.uid == 'pQLAFiWxe1PqIMuE6LoOoF2ZLKr2'; }
+
+    // Alle Vereinsdaten (budget2627): nur der Admin darf lesen & schreiben.
+    match /budget2627/{doc} {
+      allow read, write: if isAdmin();
+    }
+
+    // Alles andere ist gesperrt.
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
