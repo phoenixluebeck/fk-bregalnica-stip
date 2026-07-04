@@ -91,11 +91,22 @@ ausschließlich für **FK Bregalnica Štip** (Phönix Lübeck läuft in einer se
   in `costYr` (Zeile 197) aktualisiert. Monatsverteilung: `[0,4,3,4,3,2,2,3,4,4,4,3]` (Juli weiterhin 0 =
   Saisonvorbereitung). Verifiziert: Login lädt fehlerfrei, keine Konsolenfehler.
 
+- **Spieler-Vertragsstruktur ersetzt die generische Länder-Berechnung** (nur für Spieler, Staff bleibt bei
+  28%/10%): **Mindestlohn-Vertrag** (Kästchen in `PlayerForm`, optional) = 450 € netto/Monat, Verein zahlt
+  zusätzlich 45% → 652,50 € AG-Kosten. **Aneks-Vertrag** (Zusatzvereinbarung, für alle Spieler, das bisherige
+  „Brutto/Monat"-Feld heißt jetzt „Aneks-Gehalt/Monat") = Betrag ist netto=brutto für den Spieler, Verein zahlt
+  zusätzlich 10% obendrauf. Beispiel: 2000 € Aneks + Mindestlohn → Spieler netto 2450 €, Verein zahlt 2852,50 €.
+  `calcP` komplett neu (index.html Zeile ~188), Konstanten `MK_MINIJOB_NETTO/_AUFSCHLAG/_KOSTEN`,
+  `MK_ANEKS_AUFSCHLAG`. `PlayerForm` zeigt „Vertragsstruktur Nordmazedonien"-Box; Kader-CSV angepasst.
+
+- **Monatlich-Kostenstellen/Einnahmen auf Zeitraum einschränkbar**: Bei Häufigkeit „Monatlich" gibt es jetzt
+  zusätzlich „Von Monat"/„Bis Monat" (Felder `monthFrom`/`monthTo`, 0=Jul...11=Jun, inklusive) in `CostForm`
+  und `IncomeForm` — z. B. ein Sponsoring nur Aug–Dez statt automatisch das ganze Jahr. Ohne Angabe (alte
+  Datensätze) gilt weiterhin die volle Saison (0–11). Helper `monthRangeCount`/`inMonthRange` (index.html
+  Zeile ~207) steuern `costYr`/`costMo`/`incYr`/`incMo`. Verifiziert: Login lädt fehlerfrei, keine Konsolenfehler.
+
 ## OFFEN – nächste Schritte (mit dem User)
 1. **Firestore-Regeln publishen**: falls noch nicht geschehen — Inhalt aus `firestore.rules` in der Firebase
    Console (Firestore Database → Rules) einfügen und **Publish** klicken.
-2. **Post-Login testen**: auf der Live-Seite mit echtem Admin-Konto einloggen und prüfen, ob Budget-Daten
-   geladen/gespeichert werden (Firestore-Zugriff, Regeln greifen korrekt) — inkl. neuer Netto-Berechnung und
-   dem vereinfachten (Ein-Mannschaft-)Kader im Spieler-/Staff-Formular.
-3. Aktuellen Stand nach GitHub pushen (`git add -A && git commit -m "..." && git push`), damit die Live-Seite
-   alle Änderungen (Nordmazedonien-Abgaben, Liga/Verband-Umbenennung, Ein-Mannschaft-Kader) zeigt.
+2. **Post-Login testen**: auf der Live-Seite mit echtem Admin-Konto einloggen und alle neuen Berechnungen/Felder
+   (Spieler-Vertragsstruktur, Monatlich-Zeitraum bei Kosten/Einnahmen) mit echten Daten prüfen.

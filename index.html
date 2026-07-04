@@ -204,10 +204,13 @@ function calcS(s){
   const jb=bj+(s.bonusYear||0), mb=jb/12, sb=mb*dur;
   return {bj,jb,mb,mbTotal:mb,sb,ges:sb,...mkNetto(bm)};
 }
-const costYr=(c,tg)=>{const b=(c.amount||0)*(c.quantity||1);return c.frequency==='monthly'?b*12:c.frequency==='per_game'?b*(tg||36):b;};
-const costMo=(c,m,g)=>{const b=(c.amount||0)*(c.quantity||1);if(c.frequency==='monthly')return b;if(c.frequency==='per_game')return b*g;if(c.frequency==='yearly')return b/12;if(c.frequency==='once')return(c.month||0)===m?b:0;return 0;};
-const incYr=i=>{const b=(i.amount||0)*(i.quantity||1);return i.frequency==='monthly'?b*12:b;};
-const incMo=(i,m)=>{const b=(i.amount||0)*(i.quantity||1);if(i.frequency==='monthly')return b;if(i.frequency==='yearly')return b/12;if(i.frequency==='once')return(i.month||0)===m?b:0;return 0;};
+// Monatlich-Zeitraum: monthFrom/monthTo (0=Jul...11=Jun, inklusive) grenzen "Monatlich" auf einen Teil der Saison ein.
+const monthRangeCount=d=>Math.max(0,(d.monthTo??11)-(d.monthFrom??0)+1);
+const inMonthRange=(d,m)=>m>=(d.monthFrom??0)&&m<=(d.monthTo??11);
+const costYr=(c,tg)=>{const b=(c.amount||0)*(c.quantity||1);return c.frequency==='monthly'?b*monthRangeCount(c):c.frequency==='per_game'?b*(tg||36):b;};
+const costMo=(c,m,g)=>{const b=(c.amount||0)*(c.quantity||1);if(c.frequency==='monthly')return inMonthRange(c,m)?b:0;if(c.frequency==='per_game')return b*g;if(c.frequency==='yearly')return b/12;if(c.frequency==='once')return(c.month||0)===m?b:0;return 0;};
+const incYr=i=>{const b=(i.amount||0)*(i.quantity||1);return i.frequency==='monthly'?b*monthRangeCount(i):b;};
+const incMo=(i,m)=>{const b=(i.amount||0)*(i.quantity||1);if(i.frequency==='monthly')return inMonthRange(i,m)?b:0;if(i.frequency==='yearly')return b/12;if(i.frequency==='once')return(i.month||0)===m?b:0;return 0;};
 
 // ─── ERROR BOUNDARY ───────────────────────────────────────────────────────────
 class ErrorBoundary extends React.Component {
@@ -480,7 +483,7 @@ function StaffForm({member,onSave,onClose}){
 
 // ─── COST FORM ────────────────────────────────────────────────────────────────
 function CostForm({cost,totalGames,onSave,onClose}){
-  const [d,setD]=useState({category:'Sonstiges',subcategory:'',description:'',amount:0,quantity:1,frequency:'yearly',month:0,...(cost||{})});
+  const [d,setD]=useState({category:'Sonstiges',subcategory:'',description:'',amount:0,quantity:1,frequency:'yearly',month:0,monthFrom:0,monthTo:11,...(cost||{})});
   const set=(k,v)=>setD(p=>({...p,[k]:v}));
   const annual=useMemo(()=>costYr(d,totalGames),[d,totalGames]);
   const subcats=COST_SUBCATS[d.category]||[];
@@ -505,7 +508,7 @@ function CostForm({cost,totalGames,onSave,onClose}){
           </Sel>
         </Field>
         <Field label="Betrag (EUR)"><NumInput value={d.amount} onChange={v=>set('amount',v)} min={0}/></Field>
-        <Field label="Anzahl" note={d.frequency==='per_game'?('x '+totalGames+' Spiele = '+fmt(d.amount*(d.quantity||1)*totalGames)):d.frequency==='monthly'?('x 12 = '+fmt(d.amount*(d.quantity||1)*12)+'/Jahr'):''}>
+        <Field label="Anzahl" note={d.frequency==='per_game'?('x '+totalGames+' Spiele = '+fmt(d.amount*(d.quantity||1)*totalGames)):d.frequency==='monthly'?('x '+monthRangeCount(d)+' Monate = '+fmt(d.amount*(d.quantity||1)*monthRangeCount(d))+'/Jahr'):''}>
           <NumInput value={d.quantity} onChange={v=>set('quantity',Math.max(1,Math.round(v)))} min={1}/>
         </Field>
         {d.frequency==='once'&&<Field label="Monat" className="sm:col-span-2">
@@ -513,6 +516,18 @@ function CostForm({cost,totalGames,onSave,onClose}){
             {MONTHS.map((m,i)=><option key={i} value={i}>{m}</option>)}
           </Sel>
         </Field>}
+        {d.frequency==='monthly'&&<>
+          <Field label="Von Monat">
+            <Sel value={d.monthFrom} onChange={v=>set('monthFrom',+v)}>
+              {MONTHS.map((m,i)=><option key={i} value={i}>{m}</option>)}
+            </Sel>
+          </Field>
+          <Field label="Bis Monat">
+            <Sel value={d.monthTo} onChange={v=>set('monthTo',+v)}>
+              {MONTHS.map((m,i)=><option key={i} value={i}>{m}</option>)}
+            </Sel>
+          </Field>
+        </>}
       </div>
       <div className="rounded-lg bg-muted/50 p-3 flex justify-between items-center">
         <span className="text-sm text-muted-foreground">Jahresbetrag</span>
@@ -528,7 +543,7 @@ function CostForm({cost,totalGames,onSave,onClose}){
 
 // ─── INCOME FORM ──────────────────────────────────────────────────────────────
 function IncomeForm({item,onSave,onClose}){
-  const [d,setD]=useState({category:'Sponsoring',description:'',amount:0,quantity:1,frequency:'yearly',month:0,...(item||{})});
+  const [d,setD]=useState({category:'Sponsoring',description:'',amount:0,quantity:1,frequency:'yearly',month:0,monthFrom:0,monthTo:11,...(item||{})});
   const set=(k,v)=>setD(p=>({...p,[k]:v}));
   const annual=useMemo(()=>incYr(d),[d]);
   return(
@@ -548,12 +563,26 @@ function IncomeForm({item,onSave,onClose}){
         </Field>
         <Field label="Beschreibung" className="sm:col-span-2"><TxtInput value={d.description} onChange={v=>set('description',v)} placeholder="z.B. Hauptsponsor 2026/27"/></Field>
         <Field label="Betrag (EUR)"><NumInput value={d.amount} onChange={v=>set('amount',v)} min={0}/></Field>
-        <Field label="Anzahl"><NumInput value={d.quantity} onChange={v=>set('quantity',Math.max(1,Math.round(v)))} min={1}/></Field>
+        <Field label="Anzahl" note={d.frequency==='monthly'?('x '+monthRangeCount(d)+' Monate = '+fmt(d.amount*(d.quantity||1)*monthRangeCount(d))+'/Jahr'):''}>
+          <NumInput value={d.quantity} onChange={v=>set('quantity',Math.max(1,Math.round(v)))} min={1}/>
+        </Field>
         {d.frequency==='once'&&<Field label="Monat" className="sm:col-span-2">
           <Sel value={d.month} onChange={v=>set('month',+v)}>
             {MONTHS.map((m,i)=><option key={i} value={i}>{m}</option>)}
           </Sel>
         </Field>}
+        {d.frequency==='monthly'&&<>
+          <Field label="Von Monat">
+            <Sel value={d.monthFrom} onChange={v=>set('monthFrom',+v)}>
+              {MONTHS.map((m,i)=><option key={i} value={i}>{m}</option>)}
+            </Sel>
+          </Field>
+          <Field label="Bis Monat">
+            <Sel value={d.monthTo} onChange={v=>set('monthTo',+v)}>
+              {MONTHS.map((m,i)=><option key={i} value={i}>{m}</option>)}
+            </Sel>
+          </Field>
+        </>}
       </div>
       <div className="rounded-lg bg-muted/50 p-3 flex justify-between items-center">
         <span className="text-sm text-muted-foreground">Jahresbetrag</span>
