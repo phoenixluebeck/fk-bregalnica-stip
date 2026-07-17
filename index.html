@@ -155,7 +155,7 @@ const fsSet=(doc,data)=>db.collection(COL).doc(doc).set({data});
 // Die Passwörter liegen NICHT mehr hier, sondern sicher in Firebase Authentication.
 // Jede Rolle hat ein eigenes Konto. E-Mails werden in der Firebase Console angelegt.
 const AUTH_EMAIL={
-  admin:'admin@bregalnica-stip.de',
+  admin:'ft@phoenix-luebeck.de',
 };
 const emailToRole=email=>{const e=(email||'').toLowerCase();for(const r in AUTH_EMAIL){if(AUTH_EMAIL[r]===e)return r;}return null;};
 const VALID_ROLES=['admin'];
@@ -2013,6 +2013,20 @@ function LoginScreen(){
   const [err,setErr]=useState('');
   const [loading,setLoading]=useState(false);
   const [show,setShow]=useState(false);
+  const [resetMsg,setResetMsg]=useState('');
+  const [resetLoading,setResetLoading]=useState(false);
+
+  const sendReset=async()=>{
+    setErr('');setResetMsg('');setResetLoading(true);
+    try{
+      await auth.sendPasswordResetEmail(AUTH_EMAIL[selRole]);
+      setResetMsg('E-Mail zum Zurücksetzen wurde an '+AUTH_EMAIL[selRole]+' geschickt.');
+    }catch(ex){
+      const c=ex&&ex.code||'';
+      setResetMsg('');
+      setErr(c==='auth/user-not-found'?'Für diese Rolle wurde noch kein Zugang angelegt.':'Zurücksetzen fehlgeschlagen.'+(c?' ('+c+')':''));
+    }finally{setResetLoading(false);}
+  };
 
   const submit=async e=>{
     e.preventDefault();
@@ -2071,6 +2085,12 @@ function LoginScreen(){
                 </button>
               </div>
               {err&&<p className="flex items-center gap-1.5 text-xs text-red-600 font-medium"><span>⚠️</span>{err}</p>}
+              {resetMsg&&<p className="flex items-center gap-1.5 text-xs text-emerald-600 font-medium"><span>✓</span>{resetMsg}</p>}
+              <div className="text-right">
+                <button type="button" onClick={sendReset} disabled={resetLoading} className="text-xs text-muted-foreground hover:text-primary underline cursor-pointer disabled:opacity-50">
+                  {resetLoading?'Sende…':'Passwort vergessen?'}
+                </button>
+              </div>
             </div>
             <button type="submit" disabled={!pw||loading} className="w-full inline-flex items-center justify-center gap-2 bg-primary text-primary-foreground rounded-xl py-3 text-sm font-semibold shadow-soft hover:brightness-110 active:brightness-95 transition-all disabled:opacity-40 cursor-pointer disabled:cursor-not-allowed">
               {loading&&<span className="w-4 h-4 rounded-full border-2 border-white/40 border-t-white animate-spin"/>}
